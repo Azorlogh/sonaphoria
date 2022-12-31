@@ -1,0 +1,30 @@
+Config (
+	signals: [
+		Smooth (
+			attack: None,
+			release: Linear(0.1),
+			inner: BandEnergy (
+				low: 0.1,
+				high: 150.0,
+			),
+		),
+		BandEnergy (
+			low: 0.1,
+			high: 60.0,
+		),
+		BandEnergy (
+			low: 66.6,
+			high: 150.0,
+		),
+		Integrated (
+			Smooth (
+				attack: Exp(10.0),
+				release: Exp(10.0),
+				inner: BandEnergy (
+					low: 0.1,
+					high: 150.0,
+				),
+			),
+		)
+	]
+)
