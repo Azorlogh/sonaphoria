@@ -1,6 +1,7 @@
 use std::{borrow::Cow, time::Instant};
 
 use encase::{ShaderType, UniformBuffer};
+use ringbuf::HeapConsumer;
 use wgpu::util::DeviceExt;
 use winit::{
 	event::{Event, WindowEvent},
@@ -8,7 +9,7 @@ use winit::{
 	window::{Window, WindowBuilder},
 };
 
-use crate::{wallpaper::Wallpaper, Globals};
+use crate::{consts::DT, wallpaper::Wallpaper, Globals};
 
 pub struct Renderer {
 	event_loop: EventLoop<()>,
@@ -19,14 +20,14 @@ pub struct Renderer {
 	queue: wgpu::Queue,
 	globals: Globals,
 	globals_buf: wgpu::Buffer,
-	signals: triple_buffer::Output<Vec<f32>>,
+	signals: HeapConsumer<Vec<f32>>,
 	signals_buf: wgpu::Buffer,
 	bind_group: wgpu::BindGroup,
 	render_pipeline: wgpu::RenderPipeline,
 }
 
 impl Renderer {
-	pub async fn new(wallpaper: &Wallpaper, mut signals: triple_buffer::Output<Vec<f32>>) -> Self {
+	pub async fn new(wallpaper: &Wallpaper, mut signals: HeapConsumer<Vec<f32>>) -> Self {
 		let event_loop = EventLoop::new();
 		let window = WindowBuilder::new().build(&event_loop).unwrap();
 		let size = window.inner_size();
@@ -100,9 +101,10 @@ impl Renderer {
 			usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
 		});
 
+		while signals.is_empty() {}
 		let signals_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
 			label: Some("Signals buf"),
-			contents: bytemuck::cast_slice(signals.read()),
+			contents: bytemuck::cast_slice(&signals.pop().unwrap()),
 			usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
 		});
 
@@ -178,6 +180,9 @@ impl Renderer {
 
 	pub fn run(mut self) {
 		let start = Instant::now();
+		let mut start_analysis = Instant::now();
+		let mut nb_read = 0;
+		let mut underrun = true;
 
 		self.event_loop.run(move |event, _, control_flow| {
 			// Have the closure take ownership of the resources.
@@ -214,7 +219,25 @@ impl Renderer {
 					// update globals
 					{
 						let now = Instant::now();
-						let signals = self.signals.read();
+						let nb_total_must_be_read =
+							((now - start_analysis).as_secs_f32() / DT * 1.05) as usize;
+						let mut signals = None;
+						for _ in 0..(nb_total_must_be_read.saturating_sub(nb_read)) {
+							// attempt to read a signals buffer
+							if let Some(new_signals) = self.signals.pop() {
+								// previous frame had an underrun, reset timing to avoid future underruns
+								signals = Some(new_signals);
+								if underrun {
+									start_analysis = Instant::now();
+									nb_read = 1;
+									underrun = false;
+								} else {
+									nb_read += 1
+								}
+							} else {
+								underrun = true;
+							}
+						}
 						self.globals.time = (now - start).as_secs_f32();
 						self.globals.resolution = glam::Vec2::new(
 							self.surface_cfg.width as f32,
@@ -225,12 +248,13 @@ impl Renderer {
 						self.queue
 							.write_buffer(&self.globals_buf, 0, &buffer.into_inner());
 
-						println!("signals: {signals:.4?}");
-						self.queue.write_buffer(
-							&self.signals_buf,
-							0,
-							bytemuck::cast_slice(signals),
-						);
+						if let Some(signals) = signals {
+							self.queue.write_buffer(
+								&self.signals_buf,
+								0,
+								bytemuck::cast_slice(&signals),
+							);
+						}
 					}
 
 					{

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Analyzer, BUFFER_SIZE, DT};
+use crate::consts::{BUFFER_SIZE, DT};
+
+use super::Analyzer;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Smoothing {

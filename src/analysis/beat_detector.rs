@@ -1,6 +1,8 @@
 use aubio::{OnsetMode, Tempo};
 
-use super::{Analyzer, BUFFER_SIZE, HOP_SIZE};
+use crate::consts::{BUFFER_SIZE, HOP_SIZE, SAMPLE_RATE};
+
+use super::Analyzer;
 
 pub struct BeatDetector {
 	tempo: Tempo,
@@ -9,7 +11,13 @@ pub struct BeatDetector {
 
 impl BeatDetector {
 	pub fn new() -> Self {
-		let tempo = Tempo::new(OnsetMode::Complex, BUFFER_SIZE, HOP_SIZE, 48000).unwrap();
+		let tempo = Tempo::new(
+			OnsetMode::Complex,
+			BUFFER_SIZE,
+			HOP_SIZE,
+			SAMPLE_RATE as u32,
+		)
+		.unwrap();
 		Self {
 			tempo,
 			last_beat: 0.0,
@@ -23,7 +31,7 @@ impl Analyzer for BeatDetector {
 		if beat != 0.0 {
 			self.last_beat = 0.0;
 		} else {
-			self.last_beat += BUFFER_SIZE as f32 / 48000.0;
+			self.last_beat += BUFFER_SIZE as f32 / SAMPLE_RATE as f32;
 		}
 		self.last_beat
 	}

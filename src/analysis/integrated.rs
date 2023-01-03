@@ -1,4 +1,6 @@
-use super::{Analyzer, BUFFER_SIZE, DT};
+use crate::consts::{BUFFER_SIZE, DT};
+
+use super::Analyzer;
 
 pub struct Integrated {
 	value: f32,
@@ -13,7 +15,7 @@ impl Integrated {
 
 impl Analyzer for Integrated {
 	fn process(&mut self, buf: &[f32; BUFFER_SIZE]) -> f32 {
-		self.value += self.inner.process(buf) / DT;
+		self.value += self.inner.process(buf) * DT;
 		self.value
 	}
 }

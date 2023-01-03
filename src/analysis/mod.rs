@@ -7,21 +7,15 @@ pub use smooth::Smoothing;
 use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ringbuf::{HeapConsumer, HeapProducer};
-use triple_buffer::triple_buffer;
 
-use crate::wallpaper::Signal;
+use crate::{consts::BUFFER_SIZE, wallpaper::Signal};
 
 use self::{
 	band_energy::BandEnergy, beat_detector::BeatDetector, integrated::Integrated, smooth::Smooth,
 };
 
-const SAMPLE_RATE: usize = 48000;
-const BUFFER_SIZE: usize = 256;
-const HOP_SIZE: usize = 256;
-const DT: f32 = BUFFER_SIZE as f32 / SAMPLE_RATE as f32;
-
-pub fn run(signals: &[Signal]) -> Result<triple_buffer::Output<Vec<f32>>> {
-	let ring = ringbuf::HeapRb::new(BUFFER_SIZE * 4);
+pub fn run(signals: &[Signal]) -> Result<HeapConsumer<Vec<f32>>> {
+	let ring = ringbuf::HeapRb::new(BUFFER_SIZE * 32);
 
 	let (prod, cons) = ring.split();
 
@@ -29,14 +23,15 @@ pub fn run(signals: &[Signal]) -> Result<triple_buffer::Output<Vec<f32>>> {
 		audio_source(prod);
 	});
 
-	let (buf_input, buf_output) = triple_buffer(&vec![0.0; signals.len()]);
+	let (prod_analysis, cons_analysis) = ringbuf::HeapRb::new(64).split();
+	// let (buf_input, buf_output) = triple_buffer(&vec![0.0; signals.len()]);
 
 	let signals = signals.to_owned();
 	std::thread::spawn(move || {
-		analyzer(cons, &signals, buf_input);
+		analyzer(cons, &signals, prod_analysis);
 	});
 
-	Ok(buf_output)
+	Ok(cons_analysis)
 }
 
 fn audio_source(mut prod: HeapProducer<f32>) {
@@ -47,7 +42,9 @@ fn audio_source(mut prod: HeapProducer<f32>) {
 	let config: cpal::StreamConfig = input_device.default_input_config().unwrap().into();
 
 	let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-		prod.push_slice(data);
+		for i in 0..(data.len() / 2) {
+			prod.push(data[i * 2]).unwrap();
+		}
 	};
 
 	let input_stream = input_device
@@ -86,7 +83,7 @@ fn create_analyzer(signal: Signal) -> Box<dyn Analyzer> {
 fn analyzer(
 	mut cons: HeapConsumer<f32>,
 	signals: &[Signal],
-	mut input: triple_buffer::Input<Vec<f32>>,
+	mut signal_prod: HeapProducer<Vec<f32>>,
 ) {
 	let mut analyzers: Vec<Box<dyn Analyzer>> = vec![];
 	for signal in signals {
@@ -98,6 +95,7 @@ fn analyzer(
 		let mut len = 0;
 		while len < BUFFER_SIZE {
 			if let Some(smpl) = cons.pop() {
+				// println!("received sample");
 				buffer[len] = smpl;
 				len += 1;
 			}
@@ -106,7 +104,6 @@ fn analyzer(
 		for analyzer in &mut analyzers {
 			output.push(analyzer.process(&buffer));
 		}
-		input.write(output);
-		// println!("{thing}");
+		signal_prod.push(output).unwrap();
 	}
 }

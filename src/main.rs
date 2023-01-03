@@ -7,6 +7,7 @@ use render::Renderer;
 use wallpaper::Wallpaper;
 
 mod analysis;
+mod consts;
 mod render;
 mod wallpaper;
 
