@@ -26,11 +26,13 @@ fn main() -> Result<()> {
 
 	let wallpaper = Wallpaper::new(cli.path)?;
 
-	let signals = analysis::run(&wallpaper.config.signals).unwrap();
+	let (stream, signals) = analysis::run(&wallpaper.config.signals).unwrap();
 
 	let renderer = futures::executor::block_on(Renderer::new(&wallpaper, signals));
 
 	renderer.run();
+
+	println!("{:?}", cpal::traits::StreamTrait::pause(&stream));
 
 	Ok(())
 }
@@ -39,4 +41,5 @@ fn main() -> Result<()> {
 struct Globals {
 	resolution: glam::Vec2,
 	time: f32,
+	frame: u32,
 }

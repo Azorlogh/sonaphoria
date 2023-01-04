@@ -83,19 +83,22 @@ fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
     pos = rotate(pos, signals.acc_bass * (spin_speed - 0.5)*10.0);
 
     // shape
-    let thresh = 0.1 + signals.bass*0.3;
+    let thresh = 0.1 + signals.bass*0.2;
     var dist = abs(pos);
     let sdist = smoothstep(vec2<f32>(thresh-AA*zoom), vec2<f32>(thresh), dist);
 
     let cycle_speed = hash21(coord);
     let offset = i32(signals.acc_shimmer * 30.0 * cycle_speed);
-    let h: f32 = hash21(coord * 1.34563);
-    let cr: f32 = hash21(coord * 84.34563*564.8);
+    let h: f32 = hash21(coord * 0.134563);
+    let cr: f32 = hash21(coord * 0.8434563*564.8);
     if cr > 0.5 {
         let idx = (i32(h * f32(NB_COLORS)) + offset)%NB_COLORS;
         color += mix(THEME[idx].rgb, BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
     } else {
-        color = BG_COLOR.rgb;
+    	let thresh = 0.1 + signals.shimmer*1.0;
+    	let sdist = smoothstep(vec2<f32>(thresh-AA*zoom), vec2<f32>(thresh), dist + 0.1);
+		color += mix(vec3<f32>(1.0), BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
+        //color = BG_COLOR.rgb;
     }
 
     return color;

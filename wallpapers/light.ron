@@ -45,5 +45,8 @@ Config (
 			),
 		),
 	],
-	main: "kanagawa.wgsl",
+	main: "light.wgsl",
+	buffers: [
+		"light_buf0.wgsl"
+	]
 )

@@ -21,6 +21,9 @@ pub struct Renderer {
 	globals: Globals,
 	globals_buf: wgpu::Buffer,
 	signals: HeapConsumer<Vec<f32>>,
+	twin_buffers: Vec<[wgpu::TextureView; 2]>,
+	twin_buffers_bind_groups: [wgpu::BindGroup; 2],
+	twin_buffers_pipelines: Vec<wgpu::RenderPipeline>,
 	signals_buf: wgpu::Buffer,
 	bind_group: wgpu::BindGroup,
 	render_pipeline: wgpu::RenderPipeline,
@@ -64,8 +67,9 @@ impl Renderer {
 		});
 
 		let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-			label: None,
+			label: Some("main"),
 			entries: &[
+				// globals
 				wgpu::BindGroupLayoutEntry {
 					binding: 0,
 					visibility: wgpu::ShaderStages::FRAGMENT,
@@ -76,6 +80,7 @@ impl Renderer {
 					},
 					count: None,
 				},
+				// signals
 				wgpu::BindGroupLayoutEntry {
 					binding: 1,
 					visibility: wgpu::ShaderStages::FRAGMENT,
@@ -123,14 +128,79 @@ impl Renderer {
 			],
 		});
 
+		// TWIN BUFFERS BIND GROUP
+
+		// BIND GROUP LAYOUT
+		let twin_buffers_bind_group_layout =
+			device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+				label: Some("main"),
+				entries: &(0..wallpaper.buffers.len())
+					.map(|i| wgpu::BindGroupLayoutEntry {
+						binding: i as u32,
+						visibility: wgpu::ShaderStages::FRAGMENT,
+						ty: wgpu::BindingType::Texture {
+							sample_type: wgpu::TextureSampleType::Float { filterable: false },
+							view_dimension: wgpu::TextureViewDimension::D2,
+							multisampled: false,
+						},
+						count: None,
+					})
+					.collect::<Vec<_>>(),
+			});
+
+		// TEXTURES
+		let mut twin_buffers = vec![];
+		for _ in 0..wallpaper.buffers.len() {
+			let mut twins = vec![];
+			for _ in 0..2 {
+				let texture = device.create_texture(&wgpu::TextureDescriptor {
+					label: None,
+					size: wgpu::Extent3d {
+						width: size.width,
+						height: size.height,
+						depth_or_array_layers: 1,
+					},
+					mip_level_count: 1,
+					sample_count: 1,
+					dimension: wgpu::TextureDimension::D2,
+					format: wgpu::TextureFormat::Rgba32Float,
+					usage: wgpu::TextureUsages::TEXTURE_BINDING
+						| wgpu::TextureUsages::RENDER_ATTACHMENT,
+				});
+				let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+				twins.push((texture, texture_view));
+			}
+			twin_buffers.push(twins);
+		}
+
+		// BIND GROUP
+
+		let twin_buffers_bind_groups: [wgpu::BindGroup; 2] = (0..2)
+			.map(|i| {
+				device.create_bind_group(&wgpu::BindGroupDescriptor {
+					label: None,
+					layout: &twin_buffers_bind_group_layout,
+					entries: &twin_buffers
+						.iter()
+						.enumerate()
+						.map(|(j, twins)| wgpu::BindGroupEntry {
+							binding: j as u32,
+							resource: wgpu::BindingResource::TextureView(&twins[i].1),
+						})
+						.collect::<Vec<_>>(),
+				})
+			})
+			.collect::<Vec<_>>()
+			.try_into()
+			.unwrap();
+
 		let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
 			label: None,
-			bind_group_layouts: &[&bind_group_layout],
+			bind_group_layouts: &[&bind_group_layout, &twin_buffers_bind_group_layout],
 			push_constant_ranges: &[],
 		});
 
 		let swapchain_format = surface.get_supported_formats(&adapter)[1];
-		// println!("{:?}", surface.get_supported_formats(&adapter));
 
 		let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 			label: None,
@@ -150,6 +220,39 @@ impl Renderer {
 			multisample: wgpu::MultisampleState::default(),
 			multiview: None,
 		});
+
+		let twin_buffers_pipelines = wallpaper
+			.buffers
+			.iter()
+			.map(|source| {
+				let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+					label: None,
+					source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(&source)),
+				});
+				device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+					label: None,
+					layout: Some(&pipeline_layout),
+					vertex: wgpu::VertexState {
+						module: &shader,
+						entry_point: "vs_main",
+						buffers: &[],
+					},
+					fragment: Some(wgpu::FragmentState {
+						module: &shader,
+						entry_point: "fs_main",
+						targets: &[Some(wgpu::ColorTargetState {
+							format: wgpu::TextureFormat::Rgba32Float,
+							blend: None,
+							write_mask: wgpu::ColorWrites::ALL,
+						})],
+					}),
+					primitive: wgpu::PrimitiveState::default(),
+					depth_stencil: None,
+					multisample: wgpu::MultisampleState::default(),
+					multiview: None,
+				})
+			})
+			.collect::<Vec<_>>();
 
 		let surface_cfg = wgpu::SurfaceConfiguration {
 			alpha_mode: wgpu::CompositeAlphaMode::Auto,
@@ -173,8 +276,14 @@ impl Renderer {
 			globals,
 			signals,
 			signals_buf,
+			twin_buffers: twin_buffers
+				.into_iter()
+				.map(|mut twins| [twins.remove(0).1, twins.remove(0).1])
+				.collect(),
+			twin_buffers_bind_groups,
 			bind_group,
 			render_pipeline,
+			twin_buffers_pipelines,
 		}
 	}
 
@@ -183,6 +292,7 @@ impl Renderer {
 		let mut start_analysis = Instant::now();
 		let mut nb_read = 0;
 		let mut underrun = true;
+		let mut frame_number = 0;
 
 		self.event_loop.run(move |event, _, control_flow| {
 			// Have the closure take ownership of the resources.
@@ -238,11 +348,12 @@ impl Renderer {
 								underrun = true;
 							}
 						}
-						self.globals.time = (now - start).as_secs_f32();
 						self.globals.resolution = glam::Vec2::new(
 							self.surface_cfg.width as f32,
 							self.surface_cfg.height as f32,
 						);
+						self.globals.time = (now - start).as_secs_f32();
+						self.globals.frame = frame_number;
 						let mut buffer = UniformBuffer::new(Vec::new());
 						buffer.write(&self.globals).unwrap();
 						self.queue
@@ -255,6 +366,29 @@ impl Renderer {
 								bytemuck::cast_slice(&signals),
 							);
 						}
+					}
+
+					let prev_twin_buffer_bind_group = match frame_number % 2 == 0 {
+						false => &self.twin_buffers_bind_groups[0],
+						true => &self.twin_buffers_bind_groups[1],
+					};
+					for i in 0..self.twin_buffers.len() {
+						let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+							label: None,
+							color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+								view: &self.twin_buffers[i][((frame_number + 0) % 2) as usize],
+								resolve_target: None,
+								ops: wgpu::Operations {
+									load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+									store: true,
+								},
+							})],
+							depth_stencil_attachment: None,
+						});
+						rpass.set_bind_group(0, &self.bind_group, &[]);
+						rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
+						rpass.set_pipeline(&self.twin_buffers_pipelines[i]);
+						rpass.draw(0..3, 0..1);
 					}
 
 					{
@@ -271,12 +405,15 @@ impl Renderer {
 							depth_stencil_attachment: None,
 						});
 						rpass.set_bind_group(0, &self.bind_group, &[]);
+						rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
 						rpass.set_pipeline(&self.render_pipeline);
 						rpass.draw(0..3, 0..1);
 					}
 
 					self.queue.submit(Some(encoder.finish()));
 					frame.present();
+
+					frame_number += 1;
 				}
 				Event::WindowEvent {
 					event: WindowEvent::CloseRequested,

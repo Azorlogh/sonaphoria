@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 mod band_energy;
 mod beat_detector;
 mod integrated;
@@ -5,7 +7,10 @@ mod smooth;
 pub use smooth::Smoothing;
 
 use anyhow::Result;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{
+	traits::{DeviceTrait, HostTrait, StreamTrait},
+	Stream,
+};
 use ringbuf::{HeapConsumer, HeapProducer};
 
 use crate::{consts::BUFFER_SIZE, wallpaper::Signal};
@@ -14,14 +19,12 @@ use self::{
 	band_energy::BandEnergy, beat_detector::BeatDetector, integrated::Integrated, smooth::Smooth,
 };
 
-pub fn run(signals: &[Signal]) -> Result<HeapConsumer<Vec<f32>>> {
-	let ring = ringbuf::HeapRb::new(BUFFER_SIZE * 32);
+pub fn run(signals: &[Signal]) -> Result<(Stream, HeapConsumer<Vec<f32>>)> {
+	let ring = ringbuf::HeapRb::new(BUFFER_SIZE * 64);
 
 	let (prod, cons) = ring.split();
 
-	std::thread::spawn(|| {
-		audio_source(prod);
-	});
+	let stream = audio_source(prod);
 
 	let (prod_analysis, cons_analysis) = ringbuf::HeapRb::new(64).split();
 	// let (buf_input, buf_output) = triple_buffer(&vec![0.0; signals.len()]);
@@ -31,10 +34,10 @@ pub fn run(signals: &[Signal]) -> Result<HeapConsumer<Vec<f32>>> {
 		analyzer(cons, &signals, prod_analysis);
 	});
 
-	Ok(cons_analysis)
+	Ok((stream, cons_analysis))
 }
 
-fn audio_source(mut prod: HeapProducer<f32>) {
+fn audio_source(mut prod: HeapProducer<f32>) -> Stream {
 	let host = cpal::default_host();
 
 	let input_device = host.default_input_device().unwrap();
@@ -42,9 +45,7 @@ fn audio_source(mut prod: HeapProducer<f32>) {
 	let config: cpal::StreamConfig = input_device.default_input_config().unwrap().into();
 
 	let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
-		for i in 0..(data.len() / 2) {
-			prod.push(data[i * 2]).unwrap();
-		}
+		prod.push_iter(&mut data.iter().step_by(2).cloned());
 	};
 
 	let input_stream = input_device
@@ -54,8 +55,7 @@ fn audio_source(mut prod: HeapProducer<f32>) {
 		.unwrap();
 
 	input_stream.play().unwrap();
-
-	loop {}
+	input_stream
 }
 
 pub trait Analyzer {
@@ -98,6 +98,8 @@ fn analyzer(
 				// println!("received sample");
 				buffer[len] = smpl;
 				len += 1;
+			} else {
+				std::thread::sleep(Duration::from_millis(1));
 			}
 		}
 		let mut output = vec![];
