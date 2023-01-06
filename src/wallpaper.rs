@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+	ffi::OsStr,
+	path::{Path, PathBuf},
+};
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
@@ -20,7 +23,7 @@ pub enum Signal {
 	},
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
 	pub signals: Vec<Signal>,
 	pub main: PathBuf,
@@ -28,10 +31,11 @@ pub struct Config {
 	pub buffers: Vec<PathBuf>,
 }
 
+#[derive(Clone)]
 pub struct Wallpaper {
 	pub config: Config,
-	pub main: String,
-	pub buffers: Vec<String>,
+	pub main: ShaderSource,
+	pub buffers: Vec<ShaderSource>,
 }
 
 impl Wallpaper {
@@ -42,13 +46,41 @@ impl Wallpaper {
 		let dir = path.as_ref().parent().ok_or(anyhow!("invalid path"))?;
 
 		Ok(Self {
-			main: std::fs::read_to_string(dir.join(&config.main))?,
+			main: ShaderSource::load(dir.join(&config.main))?,
 			buffers: config
 				.buffers
 				.iter()
-				.map(|p| std::fs::read_to_string(dir.join(p)))
+				.map(|p| ShaderSource::load(dir.join(p)))
 				.collect::<Result<_, _>>()?,
 			config,
 		})
+	}
+}
+
+#[derive(Clone)]
+pub enum ShaderSource {
+	Wgsl(String),
+	Glsl(String),
+}
+
+impl ShaderSource {
+	pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+		let source = std::fs::read_to_string(&path)?;
+		match path.as_ref().extension().and_then(OsStr::to_str) {
+			Some("frag") => Ok(Self::Glsl(source)),
+			Some("wgsl") => Ok(Self::Wgsl(source)),
+			_ => Err(anyhow!("unsupported shader format")),
+		}
+	}
+
+	pub fn get_wgpu_shader_source<'a>(&self) -> wgpu::ShaderSource {
+		match self {
+			ShaderSource::Wgsl(src) => wgpu::ShaderSource::Wgsl(src.into()),
+			ShaderSource::Glsl(src) => wgpu::ShaderSource::Glsl {
+				shader: src.into(),
+				stage: naga::ShaderStage::Fragment,
+				defines: Default::default(),
+			},
+		}
 	}
 }

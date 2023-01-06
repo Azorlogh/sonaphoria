@@ -3,6 +3,7 @@ let TAU: f32 = 6.2831853071796;
 struct Globals {
     resolution: vec2<f32>,
     time: f32,
+    frame: u32,
 }
 
 struct Signals {
@@ -20,16 +21,6 @@ var<uniform> globals: Globals;
 @group(0)
 @binding(1)
 var<uniform> signals: Signals;
-
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-    var TRI_VERTICES = array(
-        vec4<f32>(-1.0, -1.0, 0.0, 1.0),
-        vec4<f32>(-1.0, 3.0, 0.0, 1.0),
-        vec4<f32>(3.0, -1.0, 0.0, 1.0),
-    );
-    return TRI_VERTICES[in_vertex_index];
-}
 
 let BACKGROUND_SPEED: f32 = 1.0;
 let AA: f32 = 0.03;
@@ -95,7 +86,7 @@ fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
         let idx = (i32(h * f32(NB_COLORS)) + offset)%NB_COLORS;
         color += mix(THEME[idx].rgb, BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
     } else {
-    	let thresh = 0.1 + signals.shimmer*1.0;
+		let thresh = 0.1 + min(signals.shimmer*1.0, 0.05);
     	let sdist = smoothstep(vec2<f32>(thresh-AA*zoom), vec2<f32>(thresh), dist + 0.1);
 		color += mix(vec3<f32>(1.0), BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
         //color = BG_COLOR.rgb;

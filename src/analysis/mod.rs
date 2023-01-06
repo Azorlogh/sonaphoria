@@ -26,7 +26,7 @@ pub fn run(signals: &[Signal]) -> Result<(Stream, HeapConsumer<Vec<f32>>)> {
 
 	let stream = audio_source(prod);
 
-	let (prod_analysis, cons_analysis) = ringbuf::HeapRb::new(64).split();
+	let (prod_analysis, cons_analysis) = ringbuf::HeapRb::new(256).split();
 	// let (buf_input, buf_output) = triple_buffer(&vec![0.0; signals.len()]);
 
 	let signals = signals.to_owned();

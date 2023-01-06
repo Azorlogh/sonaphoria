@@ -28,7 +28,7 @@ fn main() -> Result<()> {
 
 	let (stream, signals) = analysis::run(&wallpaper.config.signals).unwrap();
 
-	let renderer = futures::executor::block_on(Renderer::new(&wallpaper, signals));
+	let renderer = futures::executor::block_on(Renderer::new(wallpaper.clone(), signals));
 
 	renderer.run();
 

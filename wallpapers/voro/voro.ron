@@ -45,5 +45,10 @@ Config (
 			),
 		),
 	],
-	main: "kanagawa.wgsl",
+	main: "voro.frag",
+	buffers: [
+		"voro_pattern.frag",
+		"voro_blur0.frag",
+		"voro_blur1.frag",
+	],
 )
