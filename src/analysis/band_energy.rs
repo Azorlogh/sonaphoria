@@ -29,9 +29,9 @@ impl BandEnergy {
 impl Analyzer for BandEnergy {
 	fn process(&mut self, buf: &[f32; BUFFER_SIZE]) -> f32 {
 		let mut sum = 0.0;
-		for low_mid_high in buf {
-			let mid = self.dft2.filter(*low_mid_high as f64) as f32;
-			sum += mid * mid;
+		for x in buf {
+			let y = self.dft2.filter(*x as f64) as f32;
+			sum += y * y;
 		}
 		let output = sum / buf.len() as f32 * 2.0;
 		output

@@ -26,3 +26,5 @@ synfx-dsp = "0.5.5"
 glam = "0.22.0"
 iir_filters = "0.1.2"
 naga = "0.10.0"
+# naga_oil = { git = "https://github.com/robtfm/naga_oil.git", branch = "10-double-underscore-is-reserved-in-glsl" }
+naga_oil = { path = "../Contributions/naga_oil" }

@@ -1,6 +1,7 @@
-use std::time::Instant;
+use std::{borrow::Cow, time::Instant};
 
 use encase::{ShaderType, UniformBuffer};
+use naga_oil::compose::{Composer, NagaModuleDescriptor};
 use ringbuf::HeapConsumer;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -114,6 +115,42 @@ fn make_twin_buffers(
 	)
 }
 
+fn make_render_pipeline(
+	device: &wgpu::Device,
+	pipeline_layout: &wgpu::PipelineLayout,
+	swapchain_format: &wgpu::TextureFormat,
+	wallpaper: &Wallpaper,
+) -> wgpu::RenderPipeline {
+	let fullscreen_vertex_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+		label: Some("fullscreen_vs"),
+		source: wgpu::ShaderSource::Wgsl(include_str!("fullscreen_vertex.wgsl").into()),
+	});
+
+	let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+		label: Some("main shader"),
+		source: wgpu::ShaderSource::Naga(Cow::Owned(wallpaper.main.clone())),
+	});
+
+	device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+		label: None,
+		layout: Some(&pipeline_layout),
+		vertex: wgpu::VertexState {
+			module: &fullscreen_vertex_shader,
+			entry_point: "vs_main",
+			buffers: &[],
+		},
+		fragment: Some(wgpu::FragmentState {
+			module: &module,
+			entry_point: "main",
+			targets: &[Some((*swapchain_format).into())],
+		}),
+		primitive: wgpu::PrimitiveState::default(),
+		depth_stencil: None,
+		multisample: wgpu::MultisampleState::default(),
+		multiview: None,
+	})
+}
+
 impl Renderer {
 	pub async fn new(wallpaper: Wallpaper, mut signals: HeapConsumer<Vec<f32>>) -> Self {
 		let event_loop = EventLoop::new();
@@ -148,10 +185,10 @@ impl Renderer {
 			source: wgpu::ShaderSource::Wgsl(include_str!("fullscreen_vertex.wgsl").into()),
 		});
 
-		let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-			label: None,
-			source: wallpaper.main.get_wgpu_shader_source(),
-		});
+		// let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+		// 	label: None,
+		// 	source: wallpaper.main.get_wgpu_shader_source(),
+		// });
 
 		let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
 			label: Some("main"),
@@ -227,24 +264,8 @@ impl Renderer {
 
 		let swapchain_format = surface.get_supported_formats(&adapter)[1];
 
-		let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-			label: None,
-			layout: Some(&pipeline_layout),
-			vertex: wgpu::VertexState {
-				module: &fullscreen_vertex_shader,
-				entry_point: "vs_main",
-				buffers: &[],
-			},
-			fragment: Some(wgpu::FragmentState {
-				module: &shader,
-				entry_point: "main",
-				targets: &[Some(swapchain_format.into())],
-			}),
-			primitive: wgpu::PrimitiveState::default(),
-			depth_stencil: None,
-			multisample: wgpu::MultisampleState::default(),
-			multiview: None,
-		});
+		let render_pipeline =
+			make_render_pipeline(&device, &pipeline_layout, &swapchain_format, &wallpaper);
 
 		let twin_buffers_pipelines = wallpaper
 			.buffers
@@ -252,7 +273,7 @@ impl Renderer {
 			.map(|source| {
 				let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
 					label: None,
-					source: source.get_wgpu_shader_source(),
+					source: wgpu::ShaderSource::Naga(Cow::Owned(source.clone())),
 				});
 				device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
 					label: None,

@@ -4,6 +4,9 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use naga_oil::compose::{
+	ComposableModuleDescriptor, Composer, NagaModuleDescriptor, ShaderLanguage, ShaderType,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::Smoothing;
@@ -28,14 +31,16 @@ pub struct Config {
 	pub signals: Vec<Signal>,
 	pub main: PathBuf,
 	#[serde(default)]
+	pub includes: Vec<PathBuf>,
+	#[serde(default)]
 	pub buffers: Vec<PathBuf>,
 }
 
 #[derive(Clone)]
 pub struct Wallpaper {
 	pub config: Config,
-	pub main: ShaderSource,
-	pub buffers: Vec<ShaderSource>,
+	pub main: naga::Module,
+	pub buffers: Vec<naga::Module>,
 }
 
 impl Wallpaper {
@@ -45,13 +50,54 @@ impl Wallpaper {
 
 		let dir = path.as_ref().parent().ok_or(anyhow!("invalid path"))?;
 
+		let mut composer = Composer::default();
+
+		println!("common");
+
+		for include in &config.includes {
+			let path = dir.join(&include);
+			let language = match &path.extension().and_then(OsStr::to_str) {
+				Some("frag") | Some("glsl") => ShaderLanguage::Glsl,
+				Some("wgsl") => ShaderLanguage::Wgsl,
+				_ => panic!("unsupported shader format"),
+			};
+			composer.add_composable_module(ComposableModuleDescriptor {
+				source: &std::fs::read_to_string(&path)?,
+				file_path: &path.to_string_lossy(),
+				language,
+				..Default::default()
+			})?;
+		}
+
+		let mut make_naga_module = |path: &Path| -> Result<naga::Module> {
+			let shader_type = match &path.extension().and_then(OsStr::to_str) {
+				Some("frag") | Some("glsl") => ShaderType::GlslFragment,
+				Some("wgsl") => ShaderType::Wgsl,
+				_ => panic!("unsupported shader format"),
+			};
+			Ok(composer.make_naga_module(NagaModuleDescriptor {
+				source: &std::fs::read_to_string(&path)?,
+				file_path: &path.to_string_lossy(),
+				shader_type,
+				..Default::default()
+			})?)
+		};
+
+		println!("main");
+
+		let main = make_naga_module(&dir.join(&config.main))?;
+
+		println!("buffers");
+
+		let buffers = config
+			.buffers
+			.iter()
+			.map(|p| make_naga_module(&dir.join(p)))
+			.collect::<Result<_, _>>()?;
+
 		Ok(Self {
-			main: ShaderSource::load(dir.join(&config.main))?,
-			buffers: config
-				.buffers
-				.iter()
-				.map(|p| ShaderSource::load(dir.join(p)))
-				.collect::<Result<_, _>>()?,
+			main,
+			buffers,
 			config,
 		})
 	}

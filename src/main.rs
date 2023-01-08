@@ -32,7 +32,7 @@ fn main() -> Result<()> {
 
 	renderer.run();
 
-	println!("{:?}", cpal::traits::StreamTrait::pause(&stream));
+	std::mem::drop(stream);
 
 	Ok(())
 }

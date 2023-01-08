@@ -1,3 +1,5 @@
+#import thing as Thing
+
 let TAU: f32 = 6.2831853071796;
 
 struct Globals {
@@ -108,7 +110,7 @@ fn kaleido(p: vec2<f32>, time: f32) -> vec2<f32> {
 }
 
 @fragment
-fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
+fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     var pos = (frag_coord.xy - globals.resolution / 2.0) / (globals.resolution.y / 2.0);
 
     // pos = kaleido(pos, globals.time*0.1);
