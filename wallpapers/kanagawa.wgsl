@@ -16,6 +16,8 @@ struct Signals {
     acc_shimmer: f32,
 }
 
+let TIME_SCALE: f32 = 1.0;
+
 @group(0)
 @binding(0)
 var<uniform> globals: Globals;
@@ -59,7 +61,7 @@ fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
 
     // let beat = exp(-signals.beat*8.0)*0.2;
 
-    var pos = pos * zoom;
+    var pos = pos * zoom * vec2<f32>(1.0, -1.0);
 
     var color: vec3<f32> = vec3<f32>(0.0);
 
@@ -67,13 +69,13 @@ fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
     let time = globals.time * 0.1 * BACKGROUND_SPEED;
     pos *= 10.0;
     pos = rotate(pos, 0.3);
-    pos += signals.acc_bass*10.0+time;
+	pos += (signals.acc_bass*10.0+time)*TIME_SCALE;
     let coord = floor(pos);
     
     // spin
     let spin_speed = hash21(coord + 1000.0);
     pos = fract(pos) - 0.5;
-    pos = rotate(pos, signals.acc_bass * (spin_speed - 0.5)*10.0);
+    pos = rotate(pos, signals.acc_bass * (spin_speed - 0.5)*10.0 * TIME_SCALE);
 
     // shape
     let thresh = 0.1 + signals.bass*0.2;
@@ -114,6 +116,9 @@ fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     var pos = (frag_coord.xy - globals.resolution / 2.0) / (globals.resolution.y / 2.0);
 
     // pos = kaleido(pos, globals.time*0.1);
+
+    //let time = globals.time*3000.0;
+    //pos += signals.bass * vec2<f32>(hash21(vec2<f32>(0.0, time)), hash21(vec2<f32>(100.0, time)))*0.03;
 
     return vec4<f32>(render_bg(pos, 1.0), 1.0);
 }

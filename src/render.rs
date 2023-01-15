@@ -337,6 +337,7 @@ impl Renderer {
 		let mut nb_read = 0;
 		let mut underrun = true;
 		let mut frame_number = 0;
+		let mut last_frame = Instant::now();
 
 		self.event_loop.run(move |event, _, control_flow| {
 			*control_flow = ControlFlow::Poll;
@@ -357,7 +358,13 @@ impl Renderer {
 					// Needed on macos
 					self.window.request_redraw();
 				}
-				Event::MainEventsCleared => self.window.request_redraw(),
+				Event::MainEventsCleared => {
+					// while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 30.0 {
+					// 	std::thread::sleep_ms(1);
+					// }
+					last_frame = Instant::now();
+					self.window.request_redraw();
+				}
 				Event::RedrawRequested(_) => {
 					let frame = self
 						.surface
