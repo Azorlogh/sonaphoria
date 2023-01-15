@@ -1,5 +1,6 @@
 use std::{
 	ffi::OsStr,
+	iter::once,
 	path::{Path, PathBuf},
 };
 
@@ -38,6 +39,7 @@ pub struct Config {
 
 #[derive(Clone)]
 pub struct Wallpaper {
+	pub config_path: PathBuf,
 	pub config: Config,
 	pub main: naga::Module,
 	pub buffers: Vec<naga::Module>,
@@ -51,8 +53,6 @@ impl Wallpaper {
 		let dir = path.as_ref().parent().ok_or(anyhow!("invalid path"))?;
 
 		let mut composer = Composer::default();
-
-		println!("common");
 
 		for include in &config.includes {
 			let path = dir.join(&include);
@@ -83,11 +83,7 @@ impl Wallpaper {
 			})?)
 		};
 
-		println!("main");
-
 		let main = make_naga_module(&dir.join(&config.main))?;
-
-		println!("buffers");
 
 		let buffers = config
 			.buffers
@@ -96,37 +92,17 @@ impl Wallpaper {
 			.collect::<Result<_, _>>()?;
 
 		Ok(Self {
+			config_path: path.as_ref().to_owned(),
 			main,
 			buffers,
 			config,
 		})
 	}
-}
 
-#[derive(Clone)]
-pub enum ShaderSource {
-	Wgsl(String),
-	Glsl(String),
-}
-
-impl ShaderSource {
-	pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
-		let source = std::fs::read_to_string(&path)?;
-		match path.as_ref().extension().and_then(OsStr::to_str) {
-			Some("frag") => Ok(Self::Glsl(source)),
-			Some("wgsl") => Ok(Self::Wgsl(source)),
-			_ => Err(anyhow!("unsupported shader format")),
-		}
-	}
-
-	pub fn get_wgpu_shader_source<'a>(&self) -> wgpu::ShaderSource {
-		match self {
-			ShaderSource::Wgsl(src) => wgpu::ShaderSource::Wgsl(src.into()),
-			ShaderSource::Glsl(src) => wgpu::ShaderSource::Glsl {
-				shader: src.into(),
-				stage: naga::ShaderStage::Fragment,
-				defines: Default::default(),
-			},
-		}
+	pub fn paths(&self) -> Vec<PathBuf> {
+		let dir = self.config_path.parent().unwrap();
+		once(self.config_path.clone())
+			.chain([self.config.main.to_owned()].iter().map(|p| dir.join(p)))
+			.collect()
 	}
 }

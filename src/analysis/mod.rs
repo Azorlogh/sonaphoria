@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+	sync::mpsc::{channel, Receiver, Sender},
+	time::Duration,
+};
 
 mod band_energy;
 mod beat_detector;
@@ -19,22 +22,39 @@ use self::{
 	band_energy::BandEnergy, beat_detector::BeatDetector, integrated::Integrated, smooth::Smooth,
 };
 
-pub fn run(signals: &[Signal]) -> Result<(Stream, HeapConsumer<Vec<f32>>)> {
-	let ring = ringbuf::HeapRb::new(BUFFER_SIZE * 64);
+pub struct AnalyzerController {
+	_stream: Stream,
+	pub signal_consumer: HeapConsumer<Vec<f32>>,
+	event_sender: Sender<SetSignals>,
+}
 
-	let (prod, cons) = ring.split();
+impl AnalyzerController {
+	pub fn start(signals: &[Signal]) -> Result<Self> {
+		let ring = ringbuf::HeapRb::new(BUFFER_SIZE * 64);
 
-	let stream = audio_source(prod);
+		let (prod, cons) = ring.split();
 
-	let (prod_analysis, cons_analysis) = ringbuf::HeapRb::new(256).split();
-	// let (buf_input, buf_output) = triple_buffer(&vec![0.0; signals.len()]);
+		let stream = audio_source(prod);
 
-	let signals = signals.to_owned();
-	std::thread::spawn(move || {
-		analyzer(cons, &signals, prod_analysis);
-	});
+		let (signal_producer, signal_consumer) = ringbuf::HeapRb::new(256).split();
 
-	Ok((stream, cons_analysis))
+		let (event_sender, event_receiver) = channel();
+
+		let signals = signals.to_owned();
+		std::thread::spawn(move || {
+			analyzer(cons, &signals, signal_producer, event_receiver);
+		});
+
+		Ok(Self {
+			_stream: stream,
+			signal_consumer,
+			event_sender,
+		})
+	}
+
+	pub fn set_signals(&self, new_signals: Vec<Signal>) {
+		self.event_sender.send(SetSignals(new_signals)).unwrap();
+	}
 }
 
 fn audio_source(mut prod: HeapProducer<f32>) -> Stream {
@@ -80,10 +100,13 @@ fn create_analyzer(signal: Signal) -> Box<dyn Analyzer> {
 	}
 }
 
+pub struct SetSignals(Vec<Signal>);
+
 fn analyzer(
 	mut cons: HeapConsumer<f32>,
 	signals: &[Signal],
 	mut signal_prod: HeapProducer<Vec<f32>>,
+	event_recv: Receiver<SetSignals>,
 ) {
 	let mut analyzers: Vec<Box<dyn Analyzer>> = vec![];
 	for signal in signals {
@@ -93,9 +116,14 @@ fn analyzer(
 	loop {
 		let mut buffer = [0.0; BUFFER_SIZE];
 		let mut len = 0;
+		if let Some(new_signals) = event_recv.try_iter().last() {
+			analyzers = vec![];
+			for signal in new_signals.0 {
+				analyzers.push(create_analyzer(signal.clone()));
+			}
+		}
 		while len < BUFFER_SIZE {
 			if let Some(smpl) = cons.pop() {
-				// println!("received sample");
 				buffer[len] = smpl;
 				len += 1;
 			} else {

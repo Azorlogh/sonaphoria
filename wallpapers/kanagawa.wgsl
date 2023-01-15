@@ -1,5 +1,3 @@
-#import thing as Thing
-
 let TAU: f32 = 6.2831853071796;
 
 struct Globals {
@@ -117,8 +115,8 @@ fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
 
     // pos = kaleido(pos, globals.time*0.1);
 
-    //let time = globals.time*3000.0;
-    //pos += signals.bass * vec2<f32>(hash21(vec2<f32>(0.0, time)), hash21(vec2<f32>(100.0, time)))*0.03;
+    // let time = globals.time*3000.0;
+    // pos += signals.bass * vec2<f32>(hash21(vec2<f32>(0.0, time)), hash21(vec2<f32>(100.0, time)))*0.03;
 
     return vec4<f32>(render_bg(pos, 1.0), 1.0);
 }

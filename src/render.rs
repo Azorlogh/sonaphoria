@@ -1,35 +1,18 @@
-use std::{borrow::Cow, time::Instant};
+use std::borrow::Cow;
 
-use encase::{ShaderType, UniformBuffer};
-use naga_oil::compose::{Composer, NagaModuleDescriptor};
-use ringbuf::HeapConsumer;
-use wgpu::util::DeviceExt;
-use winit::{
-	dpi::PhysicalSize,
-	event::{Event, WindowEvent},
-	event_loop::{ControlFlow, EventLoop},
-	window::{Window, WindowBuilder},
-};
+use encase::ShaderType;
+use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::{consts::DT, wallpaper::Wallpaper, Globals};
+use crate::{engine::Globals, wallpaper::Wallpaper};
 
 pub struct Renderer {
-	event_loop: EventLoop<()>,
-	window: Window,
-	device: wgpu::Device,
-	surface: wgpu::Surface,
-	surface_cfg: wgpu::SurfaceConfiguration,
-	queue: wgpu::Queue,
-	globals: Globals,
-	globals_buf: wgpu::Buffer,
-	signals: HeapConsumer<Vec<f32>>,
-	twin_buffers: Vec<[wgpu::TextureView; 2]>,
-	twin_buffers_bind_groups: [wgpu::BindGroup; 2],
-	twin_buffers_pipelines: Vec<wgpu::RenderPipeline>,
-	signals_buf: wgpu::Buffer,
-	bind_group: wgpu::BindGroup,
-	render_pipeline: wgpu::RenderPipeline,
-	wallpaper: Wallpaper,
+	pub twin_buffers: Vec<[wgpu::TextureView; 2]>,
+	pub twin_buffers_bind_groups: [wgpu::BindGroup; 2],
+	pub twin_buffers_pipelines: Vec<wgpu::RenderPipeline>,
+	pub signals_buf: wgpu::Buffer,
+	pub bind_group: wgpu::BindGroup,
+	pub render_pipeline: wgpu::RenderPipeline,
+	pub wallpaper: Wallpaper,
 }
 
 fn make_twin_buffers(
@@ -152,43 +135,18 @@ fn make_render_pipeline(
 }
 
 impl Renderer {
-	pub async fn new(wallpaper: Wallpaper, mut signals: HeapConsumer<Vec<f32>>) -> Self {
-		let event_loop = EventLoop::new();
-		let window = WindowBuilder::new().build(&event_loop).unwrap();
+	pub fn new(
+		window: &Window,
+		device: &wgpu::Device,
+		globals_buf: &wgpu::Buffer,
+		swapchain_format: &wgpu::TextureFormat,
+		wallpaper: Wallpaper,
+	) -> Self {
 		let size = window.inner_size();
-		let instance = wgpu::Instance::new(wgpu::Backends::all());
-		let surface = unsafe { instance.create_surface(&window) };
-		let adapter = instance
-			.request_adapter(&wgpu::RequestAdapterOptions {
-				power_preference: wgpu::PowerPreference::default(),
-				force_fallback_adapter: false,
-				compatible_surface: Some(&surface),
-			})
-			.await
-			.expect("Failed to find an appropriate adapter");
-
-		let (device, queue) = adapter
-			.request_device(
-				&wgpu::DeviceDescriptor {
-					label: None,
-					features: wgpu::Features::empty(),
-					limits: wgpu::Limits::downlevel_webgl2_defaults()
-						.using_resolution(adapter.limits()),
-				},
-				None,
-			)
-			.await
-			.expect("Failed to create device");
-
 		let fullscreen_vertex_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
 			label: Some("fullscreen_vs"),
 			source: wgpu::ShaderSource::Wgsl(include_str!("fullscreen_vertex.wgsl").into()),
 		});
-
-		// let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-		// 	label: None,
-		// 	source: wallpaper.main.get_wgpu_shader_source(),
-		// });
 
 		let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
 			label: Some("main"),
@@ -221,19 +179,10 @@ impl Renderer {
 			],
 		});
 
-		let globals = Globals::default();
-		let mut buffer = UniformBuffer::new(Vec::new());
-		buffer.write(&globals).unwrap();
-		let uniform_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-			label: Some("Uniform buffer"),
-			contents: &buffer.into_inner(),
-			usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-		});
-
-		while signals.is_empty() {}
-		let signals_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+		let signals_buf = device.create_buffer(&wgpu::BufferDescriptor {
 			label: Some("Signals buf"),
-			contents: bytemuck::cast_slice(&signals.pop().unwrap()),
+			size: 4 * wallpaper.config.signals.len() as wgpu::BufferAddress,
+			mapped_at_creation: false,
 			usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
 		});
 
@@ -243,7 +192,7 @@ impl Renderer {
 			entries: &[
 				wgpu::BindGroupEntry {
 					binding: 0,
-					resource: uniform_buf.as_entire_binding(),
+					resource: globals_buf.as_entire_binding(),
 				},
 				wgpu::BindGroupEntry {
 					binding: 1,
@@ -261,8 +210,6 @@ impl Renderer {
 			bind_group_layouts: &[&bind_group_layout, &twin_buffers_bind_group_layout],
 			push_constant_ranges: &[],
 		});
-
-		let swapchain_format = surface.get_supported_formats(&adapter)[1];
 
 		let render_pipeline =
 			make_render_pipeline(&device, &pipeline_layout, &swapchain_format, &wallpaper);
@@ -300,27 +247,7 @@ impl Renderer {
 			})
 			.collect::<Vec<_>>();
 
-		let surface_cfg = wgpu::SurfaceConfiguration {
-			alpha_mode: wgpu::CompositeAlphaMode::Auto,
-			usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-			format: swapchain_format,
-			width: size.width,
-			height: size.height,
-			present_mode: wgpu::PresentMode::Fifo,
-		};
-
-		surface.configure(&device, &surface_cfg);
-
 		Self {
-			event_loop,
-			window,
-			device,
-			surface,
-			surface_cfg,
-			queue,
-			globals_buf: uniform_buf,
-			globals,
-			signals,
 			signals_buf,
 			twin_buffers,
 			twin_buffers_bind_groups,
@@ -331,148 +258,60 @@ impl Renderer {
 		}
 	}
 
-	pub fn run(mut self) {
-		let start = Instant::now();
-		let mut start_analysis = Instant::now();
-		let mut nb_read = 0;
-		let mut underrun = true;
-		let mut frame_number = 0;
-		let mut last_frame = Instant::now();
+	pub fn resize(&mut self, device: &wgpu::Device, size: PhysicalSize<u32>) {
+		let (_, twin_buffers, twin_buffers_bind_groups) =
+			make_twin_buffers(&device, size, &self.wallpaper);
+		self.twin_buffers = twin_buffers;
+		self.twin_buffers_bind_groups = twin_buffers_bind_groups;
+	}
 
-		self.event_loop.run(move |event, _, control_flow| {
-			*control_flow = ControlFlow::Poll;
-			match event {
-				Event::WindowEvent {
-					event: WindowEvent::Resized(size),
-					..
-				} => {
-					self.surface_cfg.width = size.width;
-					self.surface_cfg.height = size.height;
-					self.surface.configure(&self.device, &self.surface_cfg);
+	pub fn render(
+		&mut self,
+		encoder: &mut wgpu::CommandEncoder,
+		view: &wgpu::TextureView,
+		frame_number: u32,
+	) {
+		// run twin buffers
+		let prev_twin_buffer_bind_group = match frame_number % 2 == 0 {
+			false => &self.twin_buffers_bind_groups[0],
+			true => &self.twin_buffers_bind_groups[1],
+		};
+		for i in 0..self.twin_buffers.len() {
+			let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+				label: None,
+				color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+					view: &self.twin_buffers[i][((frame_number + 0) % 2) as usize],
+					resolve_target: None,
+					ops: wgpu::Operations {
+						load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+						store: true,
+					},
+				})],
+				depth_stencil_attachment: None,
+			});
+			rpass.set_bind_group(0, &self.bind_group, &[]);
+			rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
+			rpass.set_pipeline(&self.twin_buffers_pipelines[i]);
+			rpass.draw(0..3, 0..1);
+		}
 
-					let (_, twin_buffers, twin_buffers_bind_groups) =
-						make_twin_buffers(&self.device, size, &self.wallpaper);
-					self.twin_buffers = twin_buffers;
-					self.twin_buffers_bind_groups = twin_buffers_bind_groups;
-
-					// Needed on macos
-					self.window.request_redraw();
-				}
-				Event::MainEventsCleared => {
-					// while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 30.0 {
-					// 	std::thread::sleep_ms(1);
-					// }
-					last_frame = Instant::now();
-					self.window.request_redraw();
-				}
-				Event::RedrawRequested(_) => {
-					let frame = self
-						.surface
-						.get_current_texture()
-						.expect("Failed to acquire next swap chain texture");
-					let view = frame
-						.texture
-						.create_view(&wgpu::TextureViewDescriptor::default());
-					let mut encoder = self
-						.device
-						.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-					// update globals
-					{
-						let now = Instant::now();
-						let nb_total_must_be_read =
-							((now - start_analysis).as_secs_f32() / DT * 1.05) as usize;
-						let mut signals = None;
-						for _ in 0..(nb_total_must_be_read.saturating_sub(nb_read)) {
-							// attempt to read a signals buffer
-							if let Some(new_signals) = self.signals.pop() {
-								// previous frame had an underrun, reset timing to avoid future underruns
-								signals = Some(new_signals);
-								if underrun {
-									start_analysis = Instant::now();
-									nb_read = 1;
-									underrun = false;
-								} else {
-									nb_read += 1
-								}
-							} else {
-								underrun = true;
-							}
-						}
-						self.globals.resolution = glam::Vec2::new(
-							self.surface_cfg.width as f32,
-							self.surface_cfg.height as f32,
-						);
-						self.globals.time = (now - start).as_secs_f32();
-						self.globals.frame = frame_number;
-						let mut buffer = UniformBuffer::new(Vec::new());
-						buffer.write(&self.globals).unwrap();
-						self.queue
-							.write_buffer(&self.globals_buf, 0, &buffer.into_inner());
-
-						if let Some(signals) = signals {
-							self.queue.write_buffer(
-								&self.signals_buf,
-								0,
-								bytemuck::cast_slice(&signals),
-							);
-						}
-					}
-
-					// run twin buffers
-					let prev_twin_buffer_bind_group = match frame_number % 2 == 0 {
-						false => &self.twin_buffers_bind_groups[0],
-						true => &self.twin_buffers_bind_groups[1],
-					};
-					for i in 0..self.twin_buffers.len() {
-						let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-							label: None,
-							color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-								view: &self.twin_buffers[i][((frame_number + 0) % 2) as usize],
-								resolve_target: None,
-								ops: wgpu::Operations {
-									load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-									store: true,
-								},
-							})],
-							depth_stencil_attachment: None,
-						});
-						rpass.set_bind_group(0, &self.bind_group, &[]);
-						rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
-						rpass.set_pipeline(&self.twin_buffers_pipelines[i]);
-						rpass.draw(0..3, 0..1);
-					}
-
-					{
-						let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-							label: None,
-							color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-								view: &view,
-								resolve_target: None,
-								ops: wgpu::Operations {
-									load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-									store: true,
-								},
-							})],
-							depth_stencil_attachment: None,
-						});
-						rpass.set_bind_group(0, &self.bind_group, &[]);
-						rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
-						rpass.set_pipeline(&self.render_pipeline);
-						rpass.draw(0..3, 0..1);
-					}
-
-					self.queue.submit(Some(encoder.finish()));
-					frame.present();
-
-					frame_number += 1;
-				}
-				Event::WindowEvent {
-					event: WindowEvent::CloseRequested,
-					..
-				} => *control_flow = ControlFlow::Exit,
-				_ => {}
-			}
-		});
+		{
+			let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+				label: None,
+				color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+					view: &view,
+					resolve_target: None,
+					ops: wgpu::Operations {
+						load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+						store: true,
+					},
+				})],
+				depth_stencil_attachment: None,
+			});
+			rpass.set_bind_group(0, &self.bind_group, &[]);
+			rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
+			rpass.set_pipeline(&self.render_pipeline);
+			rpass.draw(0..3, 0..1);
+		}
 	}
 }

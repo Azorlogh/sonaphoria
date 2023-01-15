@@ -28,3 +28,4 @@ iir_filters = "0.1.2"
 naga = "0.10.0"
 # naga_oil = { git = "https://github.com/robtfm/naga_oil.git" }
 naga_oil = "0.4.2"
+notify = "5.0.0"
