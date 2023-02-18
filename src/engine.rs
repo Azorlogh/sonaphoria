@@ -218,6 +218,8 @@ impl Engine {
 							self.surface_cfg.height as f32,
 						);
 						self.globals.time = (now - start).as_secs_f32();
+
+						// println!("{:?}", self.globals.time);
 						self.globals.frame = frame_number;
 						let mut buffer = UniformBuffer::new(Vec::new());
 						buffer.write(&self.globals).unwrap();

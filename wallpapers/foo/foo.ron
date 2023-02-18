@@ -1,0 +1,26 @@
+Config (
+	signals: [
+		Smooth (
+			attack: Exp(30.0),
+			release: Exp(30.0),
+			inner: BandEnergy (
+				low: 0.1,
+				high: 10000.0,
+			),
+		),
+		Integrated (
+			Smooth (
+				attack: Exp(30.0),
+				release: Exp(30.0),
+				inner: BandEnergy (
+					low: 0.1,
+					high: 1000.0,
+				),
+			),
+		),
+	],
+	main: "main.frag",
+	buffers: [
+		"prop.frag"
+	],
+)
