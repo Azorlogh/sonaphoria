@@ -33,7 +33,7 @@ fn make_twin_buffers(
 					binding: i as u32,
 					visibility: wgpu::ShaderStages::FRAGMENT,
 					ty: wgpu::BindingType::Texture {
-						sample_type: wgpu::TextureSampleType::Float { filterable: false },
+						sample_type: wgpu::TextureSampleType::Float { filterable: true },
 						view_dimension: wgpu::TextureViewDimension::D2,
 						multisampled: false,
 					},
@@ -58,6 +58,7 @@ fn make_twin_buffers(
 				sample_count: 1,
 				dimension: wgpu::TextureDimension::D2,
 				format: wgpu::TextureFormat::Rgba32Float,
+				// format: wgpu::TextureFormat::Rgba8Unorm,
 				usage: wgpu::TextureUsages::TEXTURE_BINDING
 					| wgpu::TextureUsages::RENDER_ATTACHMENT,
 			});
@@ -148,6 +149,13 @@ impl Renderer {
 			source: wgpu::ShaderSource::Wgsl(include_str!("fullscreen_vertex.wgsl").into()),
 		});
 
+		let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+			label: Some("mip"),
+			mag_filter: wgpu::FilterMode::Linear,
+			min_filter: wgpu::FilterMode::Linear,
+			..Default::default()
+		});
+
 		let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
 			label: Some("main"),
 			entries: &[
@@ -176,6 +184,12 @@ impl Renderer {
 					},
 					count: None,
 				},
+				wgpu::BindGroupLayoutEntry {
+					binding: 2,
+					visibility: wgpu::ShaderStages::FRAGMENT,
+					ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+					count: None,
+				},
 			],
 		});
 
@@ -197,6 +211,10 @@ impl Renderer {
 				wgpu::BindGroupEntry {
 					binding: 1,
 					resource: signals_buf.as_entire_binding(),
+				},
+				wgpu::BindGroupEntry {
+					binding: 2,
+					resource: wgpu::BindingResource::Sampler(&sampler),
 				},
 			],
 		});
@@ -235,6 +253,7 @@ impl Renderer {
 						entry_point: "main",
 						targets: &[Some(wgpu::ColorTargetState {
 							format: wgpu::TextureFormat::Rgba32Float,
+							// format: wgpu::TextureFormat::Rgba8Unorm,
 							blend: None,
 							write_mask: wgpu::ColorWrites::ALL,
 						})],

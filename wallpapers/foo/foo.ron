@@ -5,7 +5,7 @@ Config (
 			release: Exp(30.0),
 			inner: BandEnergy (
 				low: 0.1,
-				high: 10000.0,
+				high: 300.0,
 			),
 		),
 		Integrated (
@@ -14,13 +14,24 @@ Config (
 				release: Exp(30.0),
 				inner: BandEnergy (
 					low: 0.1,
-					high: 1000.0,
+					high: 300.0,
 				),
+			),
+		),
+		Smooth (
+			attack: Exp(30.0),
+			release: Exp(30.0),
+			inner: BandEnergy (
+				low: 500.0,
+				high: 10000.0,
 			),
 		),
 	],
 	main: "main.frag",
+	includes: [
+		"common.frag",
+	],
 	buffers: [
-		"prop.frag"
+		"prop.frag",
 	],
 )
