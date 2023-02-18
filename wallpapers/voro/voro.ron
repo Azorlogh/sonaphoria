@@ -18,8 +18,8 @@ Config (
 		),
 		Integrated (
 			Smooth (
-				attack: Exp(100.0),
-				release: Exp(10.0),
+				attack: Exp(10000.0),
+				release: Exp(10000.0),
 				inner: BandEnergy (
 					low: 0.1,
 					high: 150.0,
@@ -28,7 +28,7 @@ Config (
 		),
 		Smooth (
 			attack: Exp(100.0),
-			release: Exp(50.0),
+			release: Exp(10.0),
 			inner: BandEnergy (
 				low: 1000.0,
 				high: 20000.0,

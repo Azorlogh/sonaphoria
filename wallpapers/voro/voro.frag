@@ -119,10 +119,11 @@ void main() {
 	#endif
 
 	// shadow
-	#ifdef SHADOW_ENABLE
+	//#ifdef SHADOW_ENABLE
 		vec4 blurry_pattern = texelFetch(u_buffer2, ivec2(gl_FragCoord.xy), 0);
-		out_color = out_color*(1.0-blurry_pattern.a*SHADOW_OPACITY);
-	#endif
+		//out_color = out_color*(1.0-blurry_pattern.a*SHADOW_OPACITY);
+		out_color.rgb += (blurry_pattern.a * (min(shimmer*100.0, 5.0)*blurry_pattern.rgb-0.3));
+	//#endif
 	
 	// pattern
 	vec4 pattern = texelFetch(u_buffer0, ivec2(gl_FragCoord.xy), 0);
