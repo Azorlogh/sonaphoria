@@ -12,8 +12,7 @@ const float SHADOW_OPACITY = 0.3; // TODO: 0 to disable
 const int   SHADOW_SIZE    = 6;
 
 //// PATTERN ////
-const float FADE_RADIUS = 3.0;    // amount of cells before fading
-const float TIME_SCALE  = 0.3;    // how fast it changes
+const float TIME_SCALE  = 1.0;    // how fast it changes
 #ifndef TIME_OFFSET
 const float TIME_OFFSET = 0.0;    // change this to start from a different pattern
 #endif
@@ -104,6 +103,10 @@ vec2 kaleido(vec2 p, float time) {
 	return p;
 }
 
+float fade_radius() {
+	return 3.0+shimmer*10.0;
+}
+
 const float NB_COLORS_F = float(NB_COLORS);
 // edge distance algorithm by Inigo Quilez: https://iquilezles.org/www/articles/voronoilines/voronoilines.htm
 vec4 voronoi(vec2 pos, float time, vec2 center, out float closest_dst) {
@@ -127,7 +130,7 @@ vec4 voronoi(vec2 pos, float time, vec2 center, out float closest_dst) {
 				closest_pos = rel_pos;
 				closest_coord = b;
 				closest_dst = dst;
-				fade = length(vec2(p)+b-center) - FADE_RADIUS;
+				fade = length(vec2(p)+b-center) - fade_radius();
 			}
 		}
 	}
@@ -160,11 +163,14 @@ vec4 render(vec2 pos, float time) {
 	return color;
 }
 
-const float PATTERN_SIZE = (FADE_RADIUS + SQRT_2/2.0 + 0.3 + 1.0)*SCALE + 0.04;
+float size() {
+	return (fade_radius() + SQRT_2/2.0 + 0.3 + 1.0)*SCALE + 0.04;
+}
+
 void main() {
 	vec2 pos = (gl_FragCoord.xy-u_resolution.xy/2.0) / (u_resolution.y/2.0);
 	out_color = vec4(0);
-	if (length(pos) > PATTERN_SIZE) {
+	if (length(pos) > size()) {
 		return;
 	}
 	float time = acc_bass*5.0*TIME_SCALE + TIME_OFFSET;
