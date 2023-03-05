@@ -1,4 +1,4 @@
-let TAU: f32 = 6.2831853071796;
+const TAU: f32 = 6.2831853071796;
 
 struct Globals {
     resolution: vec2<f32>,
@@ -14,7 +14,7 @@ struct Signals {
     acc_shimmer: f32,
 }
 
-let TIME_SCALE: f32 = 1.0;
+const TIME_SCALE: f32 = 1.0;
 
 @group(0)
 @binding(0)
@@ -24,8 +24,8 @@ var<uniform> globals: Globals;
 @binding(1)
 var<uniform> signals: Signals;
 
-let BACKGROUND_SPEED: f32 = 1.0;
-let AA: f32 = 0.03;
+const BACKGROUND_SPEED: f32 = 1.0;
+const AA: f32 = 0.03;
 
 fn hash21(p: vec2<f32>) -> f32 {
     var p3: vec3<f32> = fract(vec3<f32>(p.xyx) * 0.1031);
@@ -45,8 +45,8 @@ fn rotate(v: vec2<f32>, a: f32) -> vec2<f32> {
     return mat2x2<f32>(c, s, -s, c) * v;
 }
 
-let BG_COLOR: vec4<f32> = vec4<f32>(0.12156862745098, 0.12156862745098, 0.15686274509804, 0.0);
-let NB_COLORS: i32 = 6;
+const BG_COLOR: vec4<f32> = vec4<f32>(0.12156862745098, 0.12156862745098, 0.15686274509804, 0.0);
+const NB_COLORS: i32 = 6;
 fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
     var THEME = array(
         vec4<f32>(195.0,  64.0,  67.0, 255.0)/255.0, // red

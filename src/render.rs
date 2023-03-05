@@ -61,6 +61,7 @@ fn make_twin_buffers(
 				// format: wgpu::TextureFormat::Rgba8Unorm,
 				usage: wgpu::TextureUsages::TEXTURE_BINDING
 					| wgpu::TextureUsages::RENDER_ATTACHMENT,
+				view_formats: &[],
 			});
 			let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 			twins.push((texture, texture_view));

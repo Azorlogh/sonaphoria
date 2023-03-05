@@ -38,8 +38,8 @@ impl Engine {
 		let event_loop = EventLoopBuilder::with_user_event().build();
 		let window = WindowBuilder::new().build(&event_loop).unwrap();
 		let size = window.inner_size();
-		let instance = wgpu::Instance::new(wgpu::Backends::all());
-		let surface = unsafe { instance.create_surface(&window) };
+		let instance = wgpu::Instance::default();
+		let surface = unsafe { instance.create_surface(&window) }.unwrap();
 		let adapter = instance
 			.request_adapter(&wgpu::RequestAdapterOptions {
 				power_preference: wgpu::PowerPreference::default(),
@@ -62,7 +62,9 @@ impl Engine {
 			.await
 			.expect("Failed to create device");
 
-		let swapchain_format = surface.get_supported_formats(&adapter)[1];
+		let swapchain_capabilities = surface.get_capabilities(&adapter);
+		let swapchain_format = swapchain_capabilities.formats[1];
+		println!("{:?}", swapchain_format);
 
 		let surface_cfg = wgpu::SurfaceConfiguration {
 			alpha_mode: wgpu::CompositeAlphaMode::Auto,
@@ -71,6 +73,7 @@ impl Engine {
 			width: size.width,
 			height: size.height,
 			present_mode: wgpu::PresentMode::Fifo,
+			view_formats: vec![],
 		};
 
 		surface.configure(&device, &surface_cfg);
