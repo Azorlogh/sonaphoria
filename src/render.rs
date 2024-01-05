@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, iter::once};
 
 use encase::ShaderType;
 use winit::{dpi::PhysicalSize, window::Window};
@@ -28,18 +28,25 @@ fn make_twin_buffers(
 	let twin_buffers_bind_group_layout =
 		device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
 			label: Some("main"),
-			entries: &(0..wallpaper.buffers.len())
-				.map(|i| wgpu::BindGroupLayoutEntry {
-					binding: i as u32,
+			entries: &once(wgpu::BindGroupLayoutEntry {
+				binding: 0,
+				visibility: wgpu::ShaderStages::FRAGMENT,
+				ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+				count: None,
+			})
+			.chain(
+				(0..wallpaper.buffers.len()).map(|i| wgpu::BindGroupLayoutEntry {
+					binding: i as u32 + 1,
 					visibility: wgpu::ShaderStages::FRAGMENT,
 					ty: wgpu::BindingType::Texture {
-						sample_type: wgpu::TextureSampleType::Float { filterable: true },
+						sample_type: wgpu::TextureSampleType::Float { filterable: false },
 						view_dimension: wgpu::TextureViewDimension::D2,
 						multisampled: false,
 					},
 					count: None,
-				})
-				.collect::<Vec<_>>(),
+				}),
+			)
+			.collect::<Vec<_>>(),
 		});
 
 	// TEXTURES
@@ -69,21 +76,38 @@ fn make_twin_buffers(
 		twin_buffers.push(twins);
 	}
 
-	// BIND GROUP
+	// SAMPLER
+	let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+		label: Some("mip"),
+		address_mode_u: wgpu::AddressMode::ClampToEdge,
+		address_mode_v: wgpu::AddressMode::ClampToEdge,
+		address_mode_w: wgpu::AddressMode::ClampToEdge,
+		mag_filter: wgpu::FilterMode::Linear,
+		min_filter: wgpu::FilterMode::Linear,
+		mipmap_filter: wgpu::FilterMode::Nearest,
+		..Default::default()
+	});
 
+	// BIND GROUP
 	let twin_buffers_bind_groups: [wgpu::BindGroup; 2] = (0..2)
 		.map(|i| {
 			device.create_bind_group(&wgpu::BindGroupDescriptor {
 				label: None,
 				layout: &twin_buffers_bind_group_layout,
-				entries: &twin_buffers
-					.iter()
-					.enumerate()
-					.map(|(j, twins)| wgpu::BindGroupEntry {
-						binding: j as u32,
-						resource: wgpu::BindingResource::TextureView(&twins[i].1),
-					})
-					.collect::<Vec<_>>(),
+				entries: &once(wgpu::BindGroupEntry {
+					binding: 0,
+					resource: wgpu::BindingResource::Sampler(&sampler),
+				})
+				.chain(
+					twin_buffers
+						.iter()
+						.enumerate()
+						.map(|(j, twins)| wgpu::BindGroupEntry {
+							binding: j as u32 + 1,
+							resource: wgpu::BindingResource::TextureView(&twins[i].1),
+						}),
+				)
+				.collect::<Vec<_>>(),
 			})
 		})
 		.collect::<Vec<_>>()

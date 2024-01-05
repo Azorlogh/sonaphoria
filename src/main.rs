@@ -34,13 +34,16 @@ fn main() -> Result<()> {
 
 	let watcher = if cli.watch {
 		Some(notify::recommended_watcher(move |res| match res {
-			Ok(_) => {
-				if let Ok(wallpaper) = Wallpaper::new(&cli.path) {
+			Ok(_) => match Wallpaper::new(&cli.path) {
+				Ok(wallpaper) => {
 					event_proxy
 						.send_event(EngineEvent::SetWallpaper(wallpaper))
 						.ok();
 				}
-			}
+				Err(e) => {
+					println!("{e}");
+				}
+			},
 			Err(e) => println!("watch error: {:?}", e),
 		})?)
 	} else {

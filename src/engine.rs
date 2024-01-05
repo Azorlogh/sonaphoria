@@ -129,7 +129,8 @@ impl Engine {
 		let mut nb_read = 0;
 		let mut underrun = true;
 		let mut frame_number = 0;
-		// let mut last_frame = Instant::now();
+		#[allow(unused)]
+		let mut last_frame = Instant::now();
 
 		self.event_loop.run(move |event, _, control_flow| {
 			*control_flow = ControlFlow::Poll;
@@ -148,7 +149,7 @@ impl Engine {
 					self.window.request_redraw();
 				}
 				Event::MainEventsCleared => {
-					// while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 30.0 {
+					// while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 60.0 {
 					// 	std::thread::sleep_ms(1);
 					// }
 					// last_frame = Instant::now();
@@ -198,7 +199,8 @@ impl Engine {
 					{
 						let now = Instant::now();
 						let nb_total_must_be_read =
-							((now - start_analysis).as_secs_f32() / DT * 1.05) as usize;
+							((now - start_analysis).as_secs_f32() / DT * 1.3) as usize;
+						// println!("must_be_read: {}", nb_total_must_be_read);
 						let mut signals = None;
 						for _ in 0..(nb_total_must_be_read.saturating_sub(nb_read)) {
 							// attempt to read a signals buffer

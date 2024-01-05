@@ -1,0 +1,68 @@
+Config (
+	signals: [
+		Smooth (
+			attack: Exp(75000.0),
+			release: Linear(1000.0),
+			inner: BandEnergy (
+				low: 0.1,
+				high: 150.0,
+			),
+		),
+		Smooth (
+			attack: Exp(1000.0),
+			release: Exp(1000.0),
+			inner: BandEnergy (
+				low: 150.0,
+				high: 1000.0,
+			),
+		),
+		Smooth (
+			attack: Exp(1000.0),
+			release: Exp(1000.0),
+			inner: BandEnergy (
+				low: 150.0,
+				high: 800.0,
+			),
+		),
+		Smooth (
+			attack: Exp(75000.0),
+			release: Linear(100.0),
+			inner: BandEnergy (
+				low: 800.0,
+				high: 10000.0,
+			),
+		),
+		// Integrated (
+		// 	Smooth (
+		// 		attack: Exp(100.0),
+		// 		release: Exp(10.0),
+		// 		inner: BandEnergy (
+		// 			low: 0.1,
+		// 			high: 150.0,
+		// 		),
+		// 	),
+		// ),
+		// Smooth (
+		// 	attack: Exp(100.0),
+		// 	release: Exp(50.0),
+		// 	inner: BandEnergy (
+		// 		low: 1000.0,
+		// 		high: 20000.0,
+		// 	),
+		// ),
+		// Integrated (
+		// 	Smooth (
+		// 		attack: Exp(100.0),
+		// 		release: Exp(10.0),
+		// 		inner: BandEnergy (
+		// 			low: 1000.0,
+		// 			high: 20000.0,
+		// 		),
+		// 	),
+		// ),
+	],
+	main: "readout.frag",
+	buffers: [
+		"main.frag"
+	]
+)

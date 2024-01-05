@@ -102,7 +102,8 @@ impl Wallpaper {
 	pub fn paths(&self) -> Vec<PathBuf> {
 		let dir = self.config_path.parent().unwrap();
 		once(self.config_path.clone())
-			.chain([self.config.main.to_owned()].iter().map(|p| dir.join(p)))
+			.chain(once(self.config.main.to_owned()).map(|p| dir.join(p)))
+			.chain(self.config.buffers.iter().map(|p| dir.join(p)))
 			.collect()
 	}
 }

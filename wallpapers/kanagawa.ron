@@ -1,7 +1,7 @@
 Config (
 	signals: [
 		Smooth (
-			attack: Exp(75.0),
+			attack: Exp(75000.0),
 			release: Linear(1.0),
 			inner: BandEnergy (
 				low: 0.1,
