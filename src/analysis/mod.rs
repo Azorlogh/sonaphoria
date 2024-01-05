@@ -69,9 +69,12 @@ fn audio_source(mut prod: HeapProducer<f32>) -> Stream {
 	};
 
 	let input_stream = input_device
-		.build_input_stream(&config, input_data_fn, |e| {
-			eprintln!("error in input stream: {e}")
-		})
+		.build_input_stream(
+			&config,
+			input_data_fn,
+			|e| eprintln!("error in input stream: {e}"),
+			None,
+		)
 		.unwrap();
 
 	input_stream.play().unwrap();

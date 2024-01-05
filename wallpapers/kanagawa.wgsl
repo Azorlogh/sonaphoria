@@ -33,8 +33,8 @@ fn hash21(p: vec2<f32>) -> f32 {
     return fract((p3.x + p3.y) * p3.z);
 }
 
-fn hash31(p3: vec3<f32>) -> f32 {
-    var p3 = fract(p3 * 0.1031);
+fn hash31(p3_: vec3<f32>) -> f32 {
+    var p3 = fract(p3_ * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
 }
@@ -47,7 +47,7 @@ fn rotate(v: vec2<f32>, a: f32) -> vec2<f32> {
 
 const BG_COLOR: vec4<f32> = vec4<f32>(0.12156862745098, 0.12156862745098, 0.15686274509804, 0.0);
 const NB_COLORS: i32 = 6;
-fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
+fn render_bg(pos_: vec2<f32>, zoom: f32) -> vec3<f32> {
     var THEME = array(
         vec4<f32>(195.0,  64.0,  67.0, 255.0)/255.0, // red
         vec4<f32>(118.0, 148.0, 106.0, 255.0)/255.0, // green
@@ -59,7 +59,7 @@ fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
 
     // let beat = exp(-signals.beat*8.0)*0.2;
 
-    var pos = pos * zoom * vec2<f32>(1.0, -1.0);
+    var pos = pos_ * zoom * vec2<f32>(1.0, -1.0);
 
     var color: vec3<f32> = vec3<f32>(0.0);
 
@@ -88,17 +88,17 @@ fn render_bg(pos: vec2<f32>, zoom: f32) -> vec3<f32> {
         let idx = (i32(h * f32(NB_COLORS)) + offset)%NB_COLORS;
         color += mix(THEME[idx].rgb, BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
     } else {
-		let thresh = 0.1 + min(signals.shimmer*1.0, 0.05);
-    	let sdist = smoothstep(vec2<f32>(thresh-AA*zoom), vec2<f32>(thresh), dist + 0.1);
-		color += mix(vec3<f32>(1.0), BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
-        //color = BG_COLOR.rgb;
+        let thresh = 0.1 + min(signals.shimmer*1.0, 0.05);
+        let sdist = smoothstep(vec2<f32>(thresh-AA*zoom), vec2<f32>(thresh), dist + 0.1);
+        color += mix(vec3<f32>(1.0), BG_COLOR.rgb, max(0.3, max(sdist.x, sdist.y)));
+        // color = BG_COLOR.rgb;
     }
 
     return color;
 }
 
-fn kaleido(p: vec2<f32>, time: f32) -> vec2<f32> {
-    var p = p;
+fn kaleido(p_: vec2<f32>, time: f32) -> vec2<f32> {
+    var p = p_;
     // p = rotate(p, time*1.0);
 	p = abs(p);
 	p = rotate(p, time*0.1);

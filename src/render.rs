@@ -328,10 +328,12 @@ impl Renderer {
 					resolve_target: None,
 					ops: wgpu::Operations {
 						load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-						store: true,
+						store: wgpu::StoreOp::Store,
 					},
 				})],
 				depth_stencil_attachment: None,
+				timestamp_writes: None,
+				occlusion_query_set: None,
 			});
 			rpass.set_bind_group(0, &self.bind_group, &[]);
 			rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);
@@ -347,10 +349,12 @@ impl Renderer {
 					resolve_target: None,
 					ops: wgpu::Operations {
 						load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-						store: true,
+						store: wgpu::StoreOp::Store,
 					},
 				})],
 				depth_stencil_attachment: None,
+				timestamp_writes: None,
+				occlusion_query_set: None,
 			});
 			rpass.set_bind_group(0, &self.bind_group, &[]);
 			rpass.set_bind_group(1, &prev_twin_buffer_bind_group, &[]);

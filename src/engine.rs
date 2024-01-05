@@ -34,12 +34,12 @@ pub struct Engine {
 }
 
 impl Engine {
-	pub async fn new() -> Self {
+	pub async fn new() -> anyhow::Result<Self> {
 		let event_loop = EventLoopBuilder::with_user_event().build();
-		let window = WindowBuilder::new().build(&event_loop).unwrap();
+		let window = WindowBuilder::new().build(&event_loop)?;
 		let size = window.inner_size();
 		let instance = wgpu::Instance::default();
-		let surface = unsafe { instance.create_surface(&window) }.unwrap();
+		let surface = unsafe { instance.create_surface(&window) }?;
 		let adapter = instance
 			.request_adapter(&wgpu::RequestAdapterOptions {
 				power_preference: wgpu::PowerPreference::default(),
@@ -87,7 +87,7 @@ impl Engine {
 			usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
 		});
 
-		Self {
+		Ok(Self {
 			event_loop,
 			window,
 			device,
@@ -96,7 +96,7 @@ impl Engine {
 			queue,
 			globals,
 			globals_buf,
-		}
+		})
 	}
 
 	pub fn proxy(&self) -> EventLoopProxy<EngineEvent> {

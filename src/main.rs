@@ -27,7 +27,7 @@ pub struct Cli {
 fn main() -> Result<()> {
 	let cli = Cli::parse();
 
-	let engine = futures::executor::block_on(Engine::new());
+	let engine = futures::executor::block_on(Engine::new()).unwrap();
 	let event_proxy = engine.proxy();
 	let wallpaper = Wallpaper::new(&cli.path)?;
 	let analyzer = AnalyzerController::start(&wallpaper.config.signals).unwrap();

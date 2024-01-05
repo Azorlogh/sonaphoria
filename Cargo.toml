@@ -7,24 +7,24 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3.24"
-raw-window-handle = "0.5.0"
+raw-window-handle = "0.5"
 rustfft = "6.0.1"
-wgpu = { version = "0.16", features = ["glsl"] }
-winit = "0.27.2"
-cpal = "0.14"
+wgpu = { version = "0.18", features = ["glsl"] }
+winit = "0.28.7"
+cpal = "0.15.2"
 anyhow = "1.0.68"
 aubio = "0.2.1"
 ringbuf = "0.3.1"
-encase = { version = "0.4.1", features = ["glam"] }
+encase = { version = "0.7.0", features = ["glam"] }
 clap = {version = "4.0.29", features=["derive"]}
 serde = "1.0.151"
 serde_yaml = "0.9.16"
 ron = "0.8.0"
-triple_buffer = "6.2.0"
+triple_buffer = "7.0.0"
 bytemuck = "1.12.3"
 synfx-dsp = "0.5.5"
-glam = "0.22.0"
+glam = "0.25.0"
 iir_filters = "0.1.2"
-naga = "0.12"
-naga_oil = "0.7"
-notify = "5.0.0"
+naga = "0.14"
+naga_oil = "0.11"
+notify = "6.1.1"
