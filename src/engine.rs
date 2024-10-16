@@ -67,7 +67,6 @@ impl Engine {
 
 		let swapchain_capabilities = surface.get_capabilities(&adapter);
 		let swapchain_format = swapchain_capabilities.formats[0];
-		println!("{:?}", swapchain_format);
 
 		// let surface_cfg = wgpu::SurfaceConfiguration {
 		// 	alpha_mode: wgpu::CompositeAlphaMode::Auto,
@@ -136,6 +135,7 @@ impl Engine {
 		let mut frame_number = 0;
 		#[allow(unused)]
 		let mut last_frame = Instant::now();
+		let mut last_frame2 = Instant::now();
 
 		self.event_loop.run(move |event, elwt| {
 			match event {
@@ -153,10 +153,10 @@ impl Engine {
 					self.window.request_redraw();
 				}
 				Event::AboutToWait => {
-					// while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 60.0 {
-					// 	std::thread::sleep_ms(1);
-					// }
-					// last_frame = Instant::now();
+					while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 144.0 {
+						std::thread::sleep_ms(1);
+					}
+					last_frame = Instant::now();
 					self.window.request_redraw();
 				}
 				Event::UserEvent(event) => match event {
@@ -202,11 +202,16 @@ impl Engine {
 						.device
 						.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
+					
+					let now = Instant::now();
+					// println!("{}", 1.0/(now- last_frame2).as_secs_f64());
+					last_frame2 = now;
+
 					// update globals
 					{
 						let now = Instant::now();
 						let nb_total_must_be_read =
-							((now - start_analysis).as_secs_f32() / DT * 1.3) as usize;
+							((now - start_analysis).as_secs_f32() / DT * 1.1) as usize;
 						// println!("must_be_read: {}", nb_total_must_be_read);
 						let mut signals = None;
 						for _ in 0..(nb_total_must_be_read.saturating_sub(nb_read)) {

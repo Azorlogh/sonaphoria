@@ -9,7 +9,7 @@ raw-window-handle = "0.5"
 rustfft = "6.0.1"
 wgpu = { version = "22", features = ["glsl", "naga-ir"] }
 winit = "0.29"
-cpal = "0.15.2"
+cpal = { version = "0.15.2", default-features = false, features = ["jack"] }
 anyhow = "1.0.68"
 aubio = "0.2.1"
 ringbuf = "0.3.1"

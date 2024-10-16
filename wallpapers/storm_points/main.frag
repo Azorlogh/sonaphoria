@@ -13,6 +13,7 @@ layout(set = 0, binding = 1) uniform Signals {
 	float band1;
 	float band2;
 	float band3;
+	float total;
 };
 
 layout(set = 1, binding = 0) uniform sampler u_sampler;
@@ -74,20 +75,21 @@ void main() {
 	gap_size += snoise(vec3(pos*2.0, time*10.0+5644.0))*0.5+0.5;
 	gap_size += (snoise(vec3(pos*8.0, time*10.0+8644.0))*0.5+0.5)*0.5;
 	// int gaps = int(gap_size*2.0)+6;
-	int gaps = 6;
-	if (int(gl_FragCoord.x) % gaps == 0 && int(gl_FragCoord.y) % gaps == 0) {
+	int gaps = 16;
+	ivec2 coord = ivec2(mat2(cos(time), -sin(time), sin(time), cos(time))*gl_FragCoord.xy);
+	if (coord.x % gaps == 0 && coord.y % gaps == 0) {
 		// float grad = max(0.0, (1.0-length(pos)));
 		float grad = 1.0/(pow(length(pos*2.0), 2.0)+1.0);
 		float morph_time = u_time*1.0;
 		// src_input = min(texture(u_tex0, uv).r*100.0, 1.0);
 		// src_input = float(int(gl_FragCoord.x) % 17 == 0 && int(gl_FragCoord.y) % 3 == 0);
-		src_input += (snoise(vec3(pos*1.0, morph_time))*0.5+0.5)*grad * band0 * 1.0;
-		src_input += (snoise(vec3(pos*5.0, morph_time))*0.5+0.5)*grad * band1 * 4.0;
-		src_input += (snoise(vec3(pos*15.0, morph_time))*0.5+0.5)*grad * band2 * 3.0;
-		src_input += (snoise(vec3(pos*80.0, morph_time))*0.5+0.5)*grad * band3 * 2.0;
+		src_input += (snoise(vec3(pos*1.0, morph_time))*0.5+0.5 )*grad * band0 * 1.0*4.0;
+		src_input += (snoise(vec3(pos*5.0, morph_time))*0.5+0.5 )*grad * band1 * 4.0*4.0;
+		src_input += (snoise(vec3(pos*15.0, morph_time))*0.5+0.5)*grad * band2 * 3.0*4.0;
+		src_input += (snoise(vec3(pos*80.0, morph_time))*0.5+0.5)*grad * band3 * 2.0*4.0;
 	}
 	// vec2 wind = snoise2(vec3(pos*(cos(u_time)*0.4+0.6), time))*9.0*0.1;
-	vec2 wind = snoise2(vec3(pos*1.0+0.6, time))*9.0*0.1;
+	vec2 wind = snoise2(vec3(pos*1.0+0.6, time))*9.0*0.1*(0.2+total*8.0);
 	out_color.rgb += samplePrev(uv, 0.0);
 	// out_color.rgb += samplePrev(uv+wind/aspect*0.01, 0.0);
 	// out_color.rgb += samplePrev(uv+wind/aspect*0.002, 1.0);

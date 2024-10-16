@@ -1,13 +1,13 @@
 # Sonaphoria
 
-This is an animated wallpaper program that can display custom shaders and react to sound.
-It is written in Rust and uses WGPU in order to remain cross-platform and driver-agnostic.
+This is a program to configure and display audio-reactive shaders.
+It is written in Rust and uses WGPU and cpal in order to remain cross-platform and driver-agnostic.
 
 # Usage
 
-You can try out the built-in wallpapers by running the following command:
+`sonaphoria my_wallpaper.ron`
 
-`sonaphoria --built-in kanagawa`
+You can try out the example wallpapers in the `wallpapers` directory
 
 # Creating custom wallpapers
 
@@ -37,10 +37,9 @@ Config (
 Signals are inputs for your shaders that are derived from your PC's sound output.
 You can use them to create wallpapers that react to music.
 
-Shaders are written in WGSL, the shading language for WebGPU.
+Shaders can be written in WGSL or GLSL.
 
-You can define additional buffers by adding a buffers field your config. It has to contain an array of paths (strings). You can use those to persist data throughout multiple frames to create various effects.
-
+You can define additional buffers by adding a buffers field your config. It has to contain an array of paths (strings) for each shader. You can use those to persist data throughout multiple frames to create various effects.
 
 Currently, the following signals are available:
 
@@ -61,7 +60,6 @@ Smooth (
 	inner: <signal>
 )
 
-// Integrates a signal in time (useful for accelerating time when the bass hits)
+// Integrates a signal in time (useful for accelerating time when the bass hits for example)
 Integrate(<signal>)
 ```
-
