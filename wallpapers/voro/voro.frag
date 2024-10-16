@@ -70,10 +70,10 @@ float normpdf(in float x, in float sigma) {
 #define UI2 uvec2(UI0, UI1)                                    //
 #define UI3 uvec3(UI0, UI1, 2798796415U)                       //
 #define UIF (1.0 / float(0xffffffffU))                         //
-vec2 hash21(uint q){uvec2 n=q*UI2;n=(n.x^n.y)*UI2;             //
-return vec2(n)*UIF;}                                           //
-vec2 hash22(vec2 p){uvec2 q=uvec2(ivec2(p))*UI2;               //
-q=(q.x^q.y)*UI2;return vec2(q)*UIF;}                           //
+vec2 hash21(uint q){uvec2 n=q*uvec2(1597334673U, 3812015801U);n=(n.x^n.y)*uvec2(1597334673U, 3812015801U);             //
+return vec2(n)*(1.0 / float(0xffffffffU));}                                           //
+vec2 hash22(vec2 p){uvec2 q=uvec2(ivec2(p))*uvec2(1597334673U, 3812015801U);               //
+q=(q.x^q.y)*uvec2(1597334673U, 3812015801U);return vec2(q)*(1.0 / float(0xffffffffU));}                           //
 /////////////////////////////////////////////////////////////////
 
 
@@ -91,10 +91,10 @@ layout(set = 0, binding = 1) uniform Signals {
 	float acc_shimmer;
 };
 
-layout(set = 1, binding = 0) uniform texture2D u_buffer0;
-layout(set = 1, binding = 1) uniform texture2D u_buffer1;
-layout(set = 1, binding = 2) uniform texture2D u_buffer2;
-layout(set = 1, binding = 3) uniform texture2D u_buffer3;
+layout(set = 1, binding = 1) uniform texture2D u_buffer0;
+layout(set = 1, binding = 2) uniform texture2D u_buffer1;
+layout(set = 1, binding = 3) uniform texture2D u_buffer2;
+layout(set = 1, binding = 4) uniform texture2D u_buffer3;
 
 out vec4 out_color;
 
@@ -105,6 +105,23 @@ vec3 render_bg(vec2 pos) {
 		pos = mod(pos+time, vec2(1.0));
 		vec2 dist = smoothstep(0.12, 0.15, min(pos, 1.0-pos));
 		return mix(THEME[0].rgb*1.2, THEME[0].rgb, max(dist.x, dist.y));
+}
+
+// vec3 toLinear(vec3 v) {
+// //   return pow(v, vec3(2.2));
+// 	return pow(v, vec3(2.2));
+// }
+// // vec4 toLinear4(vec4 v) {
+// //   return vec4(toLinear(v.rgb), v.a);
+// // }
+
+vec4 toLinear(vec4 sRGB)
+{
+    bvec3 cutoff = lessThan(sRGB.rgb, vec3(0.04045));
+    vec3 higher = pow((sRGB.rgb + vec3(0.055))/vec3(1.055), vec3(2.4));
+    vec3 lower = sRGB.rgb/vec3(12.92);
+
+    return vec4(mix(higher, lower, cutoff), sRGB.a);
 }
 
 void main() {
@@ -127,5 +144,7 @@ void main() {
 	
 	// pattern
 	vec4 pattern = texelFetch(u_buffer0, ivec2(gl_FragCoord.xy), 0);
+	// out_color = alphaBlend(toLinear4(out_color), pattern);
+	out_color = toLinear(out_color);
 	out_color = alphaBlend(out_color, pattern);
 }

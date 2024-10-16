@@ -1,9 +1,9 @@
 #version 450
 
-layout(set = 1, binding = 0) uniform texture2D u_buffer0;
-layout(set = 1, binding = 1) uniform texture2D u_buffer1;
-layout(set = 1, binding = 2) uniform texture2D u_buffer2;
-layout(set = 1, binding = 3) uniform texture2D u_buffer3;
+layout(set = 1, binding = 1) uniform texture2D u_buffer0;
+layout(set = 1, binding = 2) uniform texture2D u_buffer1;
+layout(set = 1, binding = 3) uniform texture2D u_buffer2;
+layout(set = 1, binding = 4) uniform texture2D u_buffer3;
 
 out vec4 out_color;
 
@@ -12,6 +12,15 @@ const int SIGMA = SHADOW_SIZE;
 
 float normpdf(in float x, in float sigma) {
 	return 0.39894*exp(-0.5 * x * x / (sigma * sigma)) / sigma;
+}
+
+vec4 toLinear(vec4 sRGB)
+{
+    bvec3 cutoff = lessThan(sRGB.rgb, vec3(0.04045));
+    vec3 higher = pow((sRGB.rgb + vec3(0.055))/vec3(1.055), vec3(2.4));
+    vec3 lower = sRGB.rgb/vec3(12.92);
+
+    return vec4(mix(higher, lower, cutoff), sRGB.a);
 }
 
 void main() {
@@ -23,5 +32,5 @@ void main() {
 		sum += fact;
 	}
 	col /= sum;
-	out_color = vec4(col);
+	out_color = toLinear(vec4(col));
 }

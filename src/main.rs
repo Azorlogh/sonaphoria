@@ -50,7 +50,7 @@ fn main() -> Result<()> {
 		None
 	};
 
-	engine.run(wallpaper, analyzer, watcher);
+	engine.run(wallpaper, analyzer, watcher)?;
 
 	Ok(())
 }

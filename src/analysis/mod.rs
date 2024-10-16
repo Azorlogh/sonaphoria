@@ -137,6 +137,6 @@ fn analyzer(
 		for analyzer in &mut analyzers {
 			output.push(analyzer.process(&buffer));
 		}
-		signal_prod.push(output).unwrap();
+		signal_prod.push(output).ok();
 	}
 }

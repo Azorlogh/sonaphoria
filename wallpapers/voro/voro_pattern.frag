@@ -69,10 +69,10 @@ float normpdf(in float x, in float sigma) {
 #define UI2 uvec2(UI0, UI1)                                    //
 #define UI3 uvec3(UI0, UI1, 2798796415U)                       //
 #define UIF (1.0 / float(0xffffffffU))                         //
-vec2 hash21(uint q){uvec2 n=q*UI2;n=(n.x^n.y)*UI2;             //
-return vec2(n)*UIF;}                                           //
-vec2 hash22(vec2 p){uvec2 q=uvec2(ivec2(p))*UI2;               //
-q=(q.x^q.y)*UI2;return vec2(q)*UIF;}                           //
+vec2 hash21(uint q){uvec2 n=q*uvec2(1597334673U, 3812015801U);n=(n.x^n.y)*uvec2(1597334673U, 3812015801U);             //
+return vec2(n)*(1.0 / float(0xffffffffU));}                                           //
+vec2 hash22(vec2 p){uvec2 q=uvec2(ivec2(p))*uvec2(1597334673U, 3812015801U);               //
+q=(q.x^q.y)*uvec2(1597334673U, 3812015801U);return vec2(q)*(1.0 / float(0xffffffffU));}                           //
 /////////////////////////////////////////////////////////////////
 
 
@@ -105,6 +105,15 @@ vec2 kaleido(vec2 p, float time) {
 
 float fade_radius() {
 	return 3.0+shimmer*10.0;
+}
+
+vec4 toLinear(vec4 sRGB)
+{
+    bvec3 cutoff = lessThan(sRGB.rgb, vec3(0.04045));
+    vec3 higher = pow((sRGB.rgb + vec3(0.055))/vec3(1.055), vec3(2.4));
+    vec3 lower = sRGB.rgb/vec3(12.92);
+
+    return vec4(mix(higher, lower, cutoff), sRGB.a);
 }
 
 const float NB_COLORS_F = float(NB_COLORS);
@@ -175,5 +184,5 @@ void main() {
 	}
 	float time = acc_bass*5.0*TIME_SCALE + TIME_OFFSET;
 	vec4 pcol = render(pos, time);
-	out_color = alphaBlend(out_color, pcol);
+	out_color = toLinear(alphaBlend(out_color, pcol));
 }

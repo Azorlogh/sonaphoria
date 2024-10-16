@@ -1,11 +1,12 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
+use anyhow::{Context, Result};
 use encase::{ShaderType, UniformBuffer};
 use notify::{RecursiveMode, Watcher};
 use wgpu::util::DeviceExt;
 use winit::{
 	event::{Event, WindowEvent},
-	event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy},
+	event_loop::{ EventLoop, EventLoopBuilder, EventLoopProxy},
 	window::{Window, WindowBuilder},
 };
 
@@ -24,9 +25,9 @@ pub struct Globals {
 
 pub struct Engine {
 	pub event_loop: EventLoop<EngineEvent>,
-	pub window: Window,
+	pub window: Arc<Window>,
 	pub device: wgpu::Device,
-	pub surface: wgpu::Surface,
+	pub surface: wgpu::Surface<'static>,
 	pub surface_cfg: wgpu::SurfaceConfiguration,
 	pub queue: wgpu::Queue,
 	pub globals: Globals,
@@ -34,12 +35,13 @@ pub struct Engine {
 }
 
 impl Engine {
-	pub async fn new() -> anyhow::Result<Self> {
-		let event_loop = EventLoopBuilder::with_user_event().build();
+	pub async fn new() -> Result<Self> {
+		let event_loop = EventLoopBuilder::with_user_event().build()?;
 		let window = WindowBuilder::new().build(&event_loop)?;
 		let size = window.inner_size();
 		let instance = wgpu::Instance::default();
-		let surface = unsafe { instance.create_surface(&window) }?;
+		let window = Arc::new(window);
+		let surface = instance.create_surface(window.clone())?;
 		let adapter = instance
 			.request_adapter(&wgpu::RequestAdapterOptions {
 				power_preference: wgpu::PowerPreference::default(),
@@ -53,9 +55,10 @@ impl Engine {
 			.request_device(
 				&wgpu::DeviceDescriptor {
 					label: None,
-					features: wgpu::Features::empty(),
-					limits: wgpu::Limits::downlevel_webgl2_defaults()
+					required_features: wgpu::Features::empty(),
+					required_limits: wgpu::Limits::downlevel_webgl2_defaults()
 						.using_resolution(adapter.limits()),
+					memory_hints: wgpu::MemoryHints::MemoryUsage,
 				},
 				None,
 			)
@@ -63,18 +66,20 @@ impl Engine {
 			.expect("Failed to create device");
 
 		let swapchain_capabilities = surface.get_capabilities(&adapter);
-		let swapchain_format = swapchain_capabilities.formats[1];
+		let swapchain_format = swapchain_capabilities.formats[0];
 		println!("{:?}", swapchain_format);
 
-		let surface_cfg = wgpu::SurfaceConfiguration {
-			alpha_mode: wgpu::CompositeAlphaMode::Auto,
-			usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-			format: swapchain_format,
-			width: size.width,
-			height: size.height,
-			present_mode: wgpu::PresentMode::Fifo,
-			view_formats: vec![],
-		};
+		// let surface_cfg = wgpu::SurfaceConfiguration {
+		// 	alpha_mode: wgpu::CompositeAlphaMode::Auto,
+		// 	usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+		// 	format: swapchain_format,
+		// 	width: size.width,
+		// 	height: size.height,
+		// 	present_mode: wgpu::PresentMode::Fifo,
+		// 	view_formats: vec![],
+		// };
+
+		let surface_cfg = surface.get_default_config(&adapter, size.width, size.height).context("failed to get surface configuration")?;
 
 		surface.configure(&device, &surface_cfg);
 
@@ -108,7 +113,7 @@ impl Engine {
 		wallpaper: Wallpaper,
 		mut analyzer: AnalyzerController,
 		mut watcher: Option<impl Watcher + 'static>,
-	) {
+	) -> Result<()> {
 		let mut watched_paths = vec![];
 		if let Some(watcher) = &mut watcher {
 			watched_paths = wallpaper.paths();
@@ -132,8 +137,7 @@ impl Engine {
 		#[allow(unused)]
 		let mut last_frame = Instant::now();
 
-		self.event_loop.run(move |event, _, control_flow| {
-			*control_flow = ControlFlow::Poll;
+		self.event_loop.run(move |event, elwt| {
 			match event {
 				Event::WindowEvent {
 					event: WindowEvent::Resized(size),
@@ -148,7 +152,7 @@ impl Engine {
 					// Needed on macos
 					self.window.request_redraw();
 				}
-				Event::MainEventsCleared => {
+				Event::AboutToWait => {
 					// while (Instant::now() - last_frame).as_secs_f64() < 1.0 / 60.0 {
 					// 	std::thread::sleep_ms(1);
 					// }
@@ -183,7 +187,10 @@ impl Engine {
 						frame_number = 0;
 					}
 				},
-				Event::RedrawRequested(_) => {
+				Event::WindowEvent {
+					event: WindowEvent::RedrawRequested,
+					..
+				} => {
 					let frame = self
 						.surface
 						.get_current_texture()
@@ -250,9 +257,11 @@ impl Engine {
 				Event::WindowEvent {
 					event: WindowEvent::CloseRequested,
 					..
-				} => *control_flow = ControlFlow::Exit,
+				} => elwt.exit(),
 				_ => {}
 			}
-		});
+		})?;
+
+		Ok(())
 	}
 }

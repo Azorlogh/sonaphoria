@@ -66,6 +66,7 @@ fn make_twin_buffers(
 				dimension: wgpu::TextureDimension::D2,
 				format: wgpu::TextureFormat::Rgba32Float,
 				// format: wgpu::TextureFormat::Rgba8Unorm,
+				// format: wgpu::TextureFormat::Rgba8UnormSrgb,
 				usage: wgpu::TextureUsages::TEXTURE_BINDING
 					| wgpu::TextureUsages::RENDER_ATTACHMENT,
 				view_formats: &[],
@@ -147,16 +148,19 @@ fn make_render_pipeline(
 			module: &fullscreen_vertex_shader,
 			entry_point: "vs_main",
 			buffers: &[],
+			compilation_options: Default::default(),
 		},
 		fragment: Some(wgpu::FragmentState {
 			module: &module,
 			entry_point: "main",
 			targets: &[Some((*swapchain_format).into())],
+			compilation_options: Default::default(),
 		}),
 		primitive: wgpu::PrimitiveState::default(),
 		depth_stencil: None,
 		multisample: wgpu::MultisampleState::default(),
 		multiview: None,
+		cache: None,
 	})
 }
 
@@ -272,6 +276,7 @@ impl Renderer {
 						module: &fullscreen_vertex_shader,
 						entry_point: "vs_main",
 						buffers: &[],
+						compilation_options: Default::default(),
 					},
 					fragment: Some(wgpu::FragmentState {
 						module: &shader,
@@ -279,14 +284,17 @@ impl Renderer {
 						targets: &[Some(wgpu::ColorTargetState {
 							format: wgpu::TextureFormat::Rgba32Float,
 							// format: wgpu::TextureFormat::Rgba8Unorm,
+							// format: wgpu::TextureFormat::Rgba8UnormSrgb,
 							blend: None,
 							write_mask: wgpu::ColorWrites::ALL,
 						})],
+						compilation_options: Default::default(),
 					}),
 					primitive: wgpu::PrimitiveState::default(),
 					depth_stencil: None,
 					multisample: wgpu::MultisampleState::default(),
 					multiview: None,
+					cache: None,
 				})
 			})
 			.collect::<Vec<_>>();

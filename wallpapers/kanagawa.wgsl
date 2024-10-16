@@ -109,6 +109,15 @@ fn kaleido(p_: vec2<f32>, time: f32) -> vec2<f32> {
 	return p;
 }
 
+fn to_linear(sRGB: vec4<f32>) -> vec4<f32> {
+    let cutoff: vec3<f32> = select(vec3<f32>(1.0), vec3<f32>(0.0), sRGB.rgb < vec3<f32>(0.04045));
+    let higher: vec3<f32> = pow((sRGB.rgb + vec3<f32>(0.055)) / vec3<f32>(1.055), vec3<f32>(2.4));
+    let lower: vec3<f32> = sRGB.rgb / vec3<f32>(12.92);
+    let mixed: vec3<f32> = higher * cutoff + lower * (vec3<f32>(1.0) - cutoff);
+
+    return vec4<f32>(mixed, sRGB.a);
+}
+
 @fragment
 fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     var pos = (frag_coord.xy - globals.resolution / 2.0) / (globals.resolution.y / 2.0);
@@ -118,5 +127,5 @@ fn main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     // let time = globals.time*3000.0;
     // pos += signals.bass * vec2<f32>(hash21(vec2<f32>(0.0, time)), hash21(vec2<f32>(100.0, time)))*0.03;
 
-    return vec4<f32>(render_bg(pos, 1.0), 1.0);
+    return to_linear(vec4<f32>(render_bg(pos, 1.0), 1.0));
 }
