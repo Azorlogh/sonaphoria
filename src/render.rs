@@ -39,7 +39,7 @@ fn make_twin_buffers(
 					binding: i as u32 + 1,
 					visibility: wgpu::ShaderStages::FRAGMENT,
 					ty: wgpu::BindingType::Texture {
-						sample_type: wgpu::TextureSampleType::Float { filterable: false },
+						sample_type: wgpu::TextureSampleType::Float { filterable: true },
 						view_dimension: wgpu::TextureViewDimension::D2,
 						multisampled: false,
 					},
@@ -64,7 +64,7 @@ fn make_twin_buffers(
 				mip_level_count: 1,
 				sample_count: 1,
 				dimension: wgpu::TextureDimension::D2,
-				format: wgpu::TextureFormat::Rgba32Float,
+				format: wgpu::TextureFormat::Rgba16Float,
 				// format: wgpu::TextureFormat::Rgba8Unorm,
 				// format: wgpu::TextureFormat::Rgba8UnormSrgb,
 				usage: wgpu::TextureUsages::TEXTURE_BINDING
@@ -282,7 +282,7 @@ impl Renderer {
 						module: &shader,
 						entry_point: "main",
 						targets: &[Some(wgpu::ColorTargetState {
-							format: wgpu::TextureFormat::Rgba32Float,
+							format: wgpu::TextureFormat::Rgba16Float,
 							// format: wgpu::TextureFormat::Rgba8Unorm,
 							// format: wgpu::TextureFormat::Rgba8UnormSrgb,
 							blend: None,

@@ -61,7 +61,8 @@ float samplePrev(vec2 p, float smoothing) {
 	// data += texture(sampler2D(u_buffer0, u_sampler), p).r*smoothing;
 	// data += texelFetch(u_buffer0, ivec2(p*u_resolution), 0).r*smoothing;
 	// data += sampleExact(ivec2(p*u_resolution))*smoothing;
-	data += sampleLerp(p)*smoothing;
+	// data += sampleLerp(p)*smoothing;
+	data += texture(sampler2D(u_buffer0, u_sampler), p).r*smoothing;
 	return data;
 }
 

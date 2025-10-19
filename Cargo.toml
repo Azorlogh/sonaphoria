@@ -6,12 +6,13 @@ edition = "2021"
 [dependencies]
 futures = "0.3.24"
 raw-window-handle = "0.5"
-rustfft = "6.0.1"
+realfft = "3.4.0"
+num-complex = "0.4.6"
 wgpu = { version = "22", features = ["glsl", "naga-ir"] }
 winit = "0.29"
 cpal = { version = "0.15.2", default-features = false, features = ["jack"] }
 anyhow = "1.0.68"
-aubio = "0.2.1"
+#aubio = "0.2.1"
 ringbuf = "0.3.1"
 encase = { version = "0.7.0", features = ["glam"] }
 clap = {version = "4.0.29", features=["derive"]}
@@ -20,7 +21,6 @@ serde_yaml = "0.9.16"
 ron = "0.8.0"
 triple_buffer = "7.0.0"
 bytemuck = "1.12.3"
-synfx-dsp = "0.5.5"
 glam = "0.25.0"
 iir_filters = "0.1.2"
 naga = "22.0"

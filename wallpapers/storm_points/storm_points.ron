@@ -32,6 +32,14 @@ Config (
 				high: 10000.0,
 			),
 		),
+		Smooth (
+			attack: Exp(1.0),
+			release: Linear(1.0),
+			inner: BandEnergy (
+				low: 0.1,
+				high: 10000.0,
+			),
+		),
 		// Integrated (
 		// 	Smooth (
 		// 		attack: Exp(100.0),
